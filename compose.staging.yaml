@@ -1,0 +1,72 @@
+services:
+
+  db:
+    image: ${DB_IMAGE}
+    container_name: helpdesk-staging-db
+
+    environment:
+      POSTGRES_DB: helpdeskdb
+      POSTGRES_USER: helpdesk
+      POSTGRES_PASSWORD: staging123
+
+    volumes:
+      - staging-postgres-data:/var/lib/postgresql/data
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U helpdesk -d helpdeskdb"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+    networks:
+      staging-network:
+        aliases:
+          - db
+
+
+  app:
+    image: ${APP_IMAGE}
+    container_name: helpdesk-staging-app
+
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: helpdeskdb
+      DB_USER: helpdesk
+      DB_PASSWORD: staging123
+      PORT: 3000
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    networks:
+      staging-network:
+        aliases:
+          - app
+
+
+  nginx:
+    image: ${NGINX_IMAGE}
+    container_name: helpdesk-staging-nginx
+
+    ports:
+      - "8083:80"
+
+    depends_on:
+      - app
+
+    networks:
+      - staging-network
+
+
+volumes:
+  staging-postgres-data:
+
+
+networks:
+  staging-network:
