@@ -1,10 +1,12 @@
 {
   "name": "devops-helpdesk",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "DevOps Helpdesk real-case project",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test test/*.test.js",
+    "check": "node --check server.js"
   },
   "dependencies": {
     "express": "^5.1.0",
