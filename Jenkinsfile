@@ -435,7 +435,7 @@ pipeline {
 
                 withCredentials([
                     string(
-                        credentialsId: 'ghcr-token',
+                        credentialsId: 'ghcr-token1',
                         variable: 'GHCR_TOKEN'
                     )
                 ]) {
