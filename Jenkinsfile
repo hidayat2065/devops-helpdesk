@@ -4,10 +4,22 @@ pipeline {
 
     environment {
 
+        // =========================================================
+        // LOCAL CI IMAGES
+        // =========================================================
         APP_IMAGE = "helpdesk-app:ci-${BUILD_NUMBER}"
         DB_IMAGE = "helpdesk-db-test:ci-${BUILD_NUMBER}"
         NGINX_IMAGE = "helpdesk-nginx:ci-${BUILD_NUMBER}"
 
+        // =========================================================
+        // GITHUB CONTAINER REGISTRY
+        // =========================================================
+        GHCR_REGISTRY = "ghcr.io"
+        GHCR_OWNER = "hidayat2065"
+
+        // =========================================================
+        // CI TEST ENVIRONMENT
+        // =========================================================
         CI_NETWORK = "helpdesk-ci-${BUILD_NUMBER}"
 
         APP_CONTAINER = "helpdesk-ci-app-${BUILD_NUMBER}"
@@ -17,11 +29,9 @@ pipeline {
 
     stages {
 
-
         // =========================================================
         // 1. CHECKOUT
         // =========================================================
-
         stage('Checkout') {
 
             steps {
@@ -36,9 +46,41 @@ pipeline {
 
 
         // =========================================================
-        // 2. VALIDATE SOURCE
+        // 2. GENERATE VERSION
         // =========================================================
+        stage('Generate Version') {
 
+            steps {
+
+                script {
+
+                    env.GIT_SHORT_SHA = sh(
+                        script: 'git rev-parse --short HEAD',
+                        returnStdout: true
+                    ).trim()
+
+                    env.GHCR_APP_IMAGE =
+                        "${GHCR_REGISTRY}/${GHCR_OWNER}/devops-helpdesk-app:${env.GIT_SHORT_SHA}"
+
+                    env.GHCR_NGINX_IMAGE =
+                        "${GHCR_REGISTRY}/${GHCR_OWNER}/devops-helpdesk-nginx:${env.GIT_SHORT_SHA}"
+
+                    echo '========================================'
+                    echo 'BUILD VERSION'
+                    echo '========================================'
+                    echo "Jenkins Build : ${BUILD_NUMBER}"
+                    echo "Git Commit    : ${env.GIT_SHORT_SHA}"
+                    echo "App Image     : ${env.GHCR_APP_IMAGE}"
+                    echo "Nginx Image   : ${env.GHCR_NGINX_IMAGE}"
+                    echo '========================================'
+                }
+            }
+        }
+
+
+        // =========================================================
+        // 3. VALIDATE SOURCE
+        // =========================================================
         stage('Validate Source') {
 
             steps {
@@ -69,9 +111,8 @@ pipeline {
 
 
         // =========================================================
-        // 3. DOCKER CHECK
+        // 4. DOCKER CHECK
         // =========================================================
-
         stage('Docker Check') {
 
             steps {
@@ -87,9 +128,8 @@ pipeline {
 
 
         // =========================================================
-        // 4. BUILD APPLICATION IMAGE
+        // 5. BUILD APPLICATION
         // =========================================================
-
         stage('Build App Image') {
 
             steps {
@@ -106,9 +146,8 @@ pipeline {
 
 
         // =========================================================
-        // 5. UNIT TEST
+        // 6. UNIT TEST
         // =========================================================
-
         stage('Unit Test') {
 
             steps {
@@ -126,9 +165,8 @@ pipeline {
 
 
         // =========================================================
-        // 6. SYNTAX CHECK
+        // 7. SYNTAX CHECK
         // =========================================================
-
         stage('Syntax Check') {
 
             steps {
@@ -146,9 +184,8 @@ pipeline {
 
 
         // =========================================================
-        // 7. BUILD TEST DATABASE
+        // 8. BUILD TEST DATABASE
         // =========================================================
-
         stage('Build Test Database') {
 
             steps {
@@ -165,9 +202,8 @@ pipeline {
 
 
         // =========================================================
-        // 8. BUILD NGINX IMAGE
+        // 9. BUILD NGINX
         // =========================================================
-
         stage('Build Nginx Image') {
 
             steps {
@@ -184,31 +220,42 @@ pipeline {
 
 
         // =========================================================
-        // 9. CREATE CI TEST NETWORK
+        // 10. PREPARE CI TEST ENVIRONMENT
         // =========================================================
-
         stage('Create Test Network') {
 
             steps {
 
-                echo '=== CREATE CI NETWORK ==='
+                echo '=== CREATE CI TEST NETWORK ==='
 
                 sh '''
-                    docker network create ${CI_NETWORK}
+                    docker rm -f \
+                      ${APP_CONTAINER} \
+                      >/dev/null 2>&1 || true
+
+                    docker rm -f \
+                      ${DB_CONTAINER} \
+                      >/dev/null 2>&1 || true
+
+                    docker network rm \
+                      ${CI_NETWORK} \
+                      >/dev/null 2>&1 || true
+
+                    docker network create \
+                      ${CI_NETWORK}
                 '''
             }
         }
 
 
         // =========================================================
-        // 10. START POSTGRESQL TEST CONTAINER
+        // 11. START POSTGRESQL
         // =========================================================
-
         stage('Start PostgreSQL') {
 
             steps {
 
-                echo '=== START POSTGRESQL ==='
+                echo '=== START POSTGRESQL TEST DATABASE ==='
 
                 sh '''
                     docker run -d \
@@ -240,7 +287,9 @@ pipeline {
 
                         if [ "${STATUS}" = "healthy" ]
                         then
+
                             echo "POSTGRESQL READY"
+
                             exit 0
                         fi
 
@@ -259,14 +308,13 @@ pipeline {
 
 
         // =========================================================
-        // 11. START APPLICATION TEST CONTAINER
+        // 12. START APPLICATION
         // =========================================================
-
         stage('Start Application') {
 
             steps {
 
-                echo '=== START APPLICATION ==='
+                echo '=== START TEST APPLICATION ==='
 
                 sh '''
                     docker run -d \
@@ -285,9 +333,8 @@ pipeline {
 
 
         // =========================================================
-        // 12. CI INTEGRATION HEALTH CHECK
+        // 13. INTEGRATION TEST
         // =========================================================
-
         stage('Integration Health Check') {
 
             steps {
@@ -334,9 +381,9 @@ pipeline {
                           "
                         then
 
-                            echo "================================"
-                            echo "INTEGRATION TEST PASSED"
-                            echo "================================"
+                            echo '========================================'
+                            echo 'INTEGRATION TEST PASSED'
+                            echo '========================================'
 
                             exit 0
                         fi
@@ -345,9 +392,11 @@ pipeline {
                     done
 
 
-                    echo "================================"
-                    echo "APPLICATION HEALTH CHECK FAILED"
-                    echo "================================"
+                    echo '========================================'
+                    echo 'INTEGRATION TEST FAILED'
+                    echo '========================================'
+
+                    echo '=== APPLICATION LOG ==='
 
                     docker logs ${APP_CONTAINER} || true
 
@@ -358,14 +407,13 @@ pipeline {
 
 
         // =========================================================
-        // 13. VERIFY APPLICATION IMAGE
+        // 14. VERIFY IMAGE
         // =========================================================
-
         stage('Verify Image') {
 
             steps {
 
-                echo '=== VERIFY IMAGE ==='
+                echo '=== VERIFY APPLICATION IMAGE ==='
 
                 sh '''
                     docker image inspect \
@@ -377,14 +425,97 @@ pipeline {
 
 
         // =========================================================
-        // 14. DEPLOY TO STAGING
+        // 15. LOGIN GHCR
         // =========================================================
+        stage('Login GHCR') {
 
+            steps {
+
+                echo '=== LOGIN GITHUB CONTAINER REGISTRY ==='
+
+                withCredentials([
+                    string(
+                        credentialsId: 'ghcr-token',
+                        variable: 'GHCR_TOKEN'
+                    )
+                ]) {
+
+                    sh '''
+                        echo "$GHCR_TOKEN" | \
+                        docker login \
+                          ${GHCR_REGISTRY} \
+                          -u ${GHCR_OWNER} \
+                          --password-stdin
+                    '''
+                }
+            }
+        }
+
+
+        // =========================================================
+        // 16. TAG IMAGES
+        // =========================================================
+        stage('Tag Images') {
+
+            steps {
+
+                echo '=== TAG IMAGES FOR GHCR ==='
+
+                sh '''
+                    docker tag \
+                      ${APP_IMAGE} \
+                      ${GHCR_APP_IMAGE}
+
+                    docker tag \
+                      ${NGINX_IMAGE} \
+                      ${GHCR_NGINX_IMAGE}
+
+                    echo "APP IMAGE:"
+                    echo "${GHCR_APP_IMAGE}"
+
+                    echo "NGINX IMAGE:"
+                    echo "${GHCR_NGINX_IMAGE}"
+                '''
+            }
+        }
+
+
+        // =========================================================
+        // 17. PUSH IMAGES TO GHCR
+        // =========================================================
+        stage('Push Images') {
+
+            steps {
+
+                echo '=== PUSH IMAGES TO GHCR ==='
+
+                sh '''
+                    docker push \
+                      ${GHCR_APP_IMAGE}
+
+                    docker push \
+                      ${GHCR_NGINX_IMAGE}
+                '''
+            }
+        }
+
+
+        // =========================================================
+        // 18. DEPLOY STAGING
+        // =========================================================
         stage('Deploy Staging') {
 
             steps {
 
                 echo '=== DEPLOY TO STAGING ==='
+
+                /*
+                 * Untuk tahap ini staging masih memakai
+                 * image lokal hasil build Jenkins.
+                 *
+                 * Tahap berikutnya baru kita ubah staging
+                 * supaya pull langsung dari GHCR.
+                 */
 
                 sh '''
                     APP_IMAGE=${APP_IMAGE} \
@@ -413,9 +544,8 @@ pipeline {
 
 
         // =========================================================
-        // 15. STAGING HEALTH CHECK
+        // 19. STAGING HEALTH CHECK
         // =========================================================
-
         stage('Staging Health Check') {
 
             steps {
@@ -462,9 +592,9 @@ pipeline {
                           "
                         then
 
-                            echo "================================"
-                            echo "STAGING HEALTHY"
-                            echo "================================"
+                            echo '========================================'
+                            echo 'STAGING HEALTHY'
+                            echo '========================================'
 
                             exit 0
                         fi
@@ -473,17 +603,17 @@ pipeline {
                     done
 
 
-                    echo "================================"
-                    echo "STAGING HEALTH CHECK FAILED"
-                    echo "================================"
+                    echo '========================================'
+                    echo 'STAGING HEALTH CHECK FAILED'
+                    echo '========================================'
 
-                    echo "=== APP LOG ==="
+                    echo '=== APP LOG ==='
                     docker logs helpdesk-staging-app || true
 
-                    echo "=== NGINX LOG ==="
+                    echo '=== NGINX LOG ==='
                     docker logs helpdesk-staging-nginx || true
 
-                    echo "=== DATABASE LOG ==="
+                    echo '=== DATABASE LOG ==='
                     docker logs helpdesk-staging-db || true
 
                     exit 1
@@ -495,20 +625,24 @@ pipeline {
 
 
     // =============================================================
-    // POST ACTION
+    // POST ACTIONS
     // =============================================================
-
     post {
 
 
-        // ---------------------------------------------------------
-        // CLEANUP HANYA CONTAINER CI TEST
-        // STAGING TIDAK DIHAPUS
-        // ---------------------------------------------------------
-
+        // =========================================================
+        // ALWAYS
+        // =========================================================
         always {
 
             echo '=== CI CLEANUP ==='
+
+            /*
+             * HANYA container/network CI sementara
+             * yang dihapus.
+             *
+             * Container staging TIDAK dihapus.
+             */
 
             sh '''
                 docker rm -f \
@@ -522,48 +656,71 @@ pipeline {
                 docker network rm \
                   ${CI_NETWORK} \
                   >/dev/null 2>&1 || true
+
+                docker logout \
+                  ${GHCR_REGISTRY} \
+                  >/dev/null 2>&1 || true
             '''
 
             echo "Build Jenkins #${BUILD_NUMBER} selesai"
         }
 
 
-        // ---------------------------------------------------------
+        // =========================================================
         // SUCCESS
-        // ---------------------------------------------------------
-
+        // =========================================================
         success {
 
             echo '''
-========================================
-       CI/CD PIPELINE SUCCESS
-========================================
-Unit Test        : PASS
-Syntax Check     : PASS
-Docker Build     : PASS
-PostgreSQL Test  : PASS
-Integration Test : PASS
-Nginx Build      : PASS
-Staging Deploy   : PASS
-Staging Health   : PASS
-========================================
+================================================
+             CI/CD PIPELINE SUCCESS
+================================================
+Source Validation : PASS
+Unit Test         : PASS
+Syntax Check      : PASS
+Docker Build      : PASS
+PostgreSQL Test   : PASS
+Integration Test  : PASS
+Nginx Build       : PASS
+GHCR Login        : PASS
+GHCR Push         : PASS
+Staging Deploy    : PASS
+Staging Health    : PASS
+================================================
 '''
         }
 
 
-        // ---------------------------------------------------------
+        // =========================================================
         // FAILURE
-        // ---------------------------------------------------------
-
+        // =========================================================
         failure {
 
             echo '''
-========================================
-        CI/CD PIPELINE FAILED
-========================================
-Lihat stage yang berwarna merah
-pada Jenkins Pipeline.
-========================================
+================================================
+             CI/CD PIPELINE FAILED
+================================================
+
+Lihat stage Jenkins yang berwarna merah.
+
+Jika gagal pada:
+
+Login GHCR
+→ cek credential ID ghcr-token
+
+Push Images
+→ cek permission write:packages
+
+Integration Health Check
+→ cek app/database log
+
+Deploy Staging
+→ cek compose.staging.yaml
+
+Staging Health Check
+→ cek Nginx/App/PostgreSQL
+
+================================================
 '''
         }
 
