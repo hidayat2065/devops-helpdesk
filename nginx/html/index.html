@@ -42,8 +42,7 @@
       border-radius: 12px;
       padding: 24px;
       margin-bottom: 24px;
-      box-shadow:
-        0 1px 3px rgba(0, 0, 0, 0.08);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     }
 
     .card h2 {
@@ -103,8 +102,9 @@
       background: #1d4ed8;
     }
 
-    .btn-primary:disabled {
-      background: #93c5fd;
+    button:disabled,
+    select:disabled {
+      opacity: 0.6;
       cursor: not-allowed;
     }
 
@@ -130,8 +130,8 @@
 
     .ticket-header {
       display: flex;
-      align-items: center;
       justify-content: space-between;
+      align-items: center;
       gap: 15px;
       margin-bottom: 16px;
     }
@@ -204,14 +204,25 @@
       color: #991b1b;
     }
 
-    .status {
-      display: inline-block;
-      padding: 5px 9px;
-      border-radius: 12px;
+    .status-select {
+      min-width: 145px;
+      padding: 7px 9px;
+      font-weight: bold;
+    }
+
+    .status-open {
       background: #e0e7ff;
       color: #3730a3;
-      font-size: 12px;
-      font-weight: bold;
+    }
+
+    .status-progress {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .status-resolved {
+      background: #dcfce7;
+      color: #166534;
     }
 
     .loading {
@@ -246,9 +257,7 @@
 
     <div class="header">
       <h1>IT Helpdesk</h1>
-      <p>
-        Sistem pencatatan dan monitoring tiket IT Support
-      </p>
+      <p>Sistem pencatatan dan monitoring tiket IT Support</p>
     </div>
 
     <!-- CREATE TICKET -->
@@ -261,9 +270,7 @@
         <div class="form-grid">
 
           <div class="form-group">
-            <label for="title">
-              Judul Masalah
-            </label>
+            <label for="title">Judul Masalah</label>
 
             <input
               type="text"
@@ -276,29 +283,13 @@
           </div>
 
           <div class="form-group">
-            <label for="priority">
-              Priority
-            </label>
+            <label for="priority">Priority</label>
 
-            <select
-              id="priority"
-              name="priority"
-            >
-              <option value="Low">
-                Low
-              </option>
-
-              <option value="Medium" selected>
-                Medium
-              </option>
-
-              <option value="High">
-                High
-              </option>
-
-              <option value="Critical">
-                Critical
-              </option>
+            <select id="priority" name="priority">
+              <option value="Low">Low</option>
+              <option value="Medium" selected>Medium</option>
+              <option value="High">High</option>
+              <option value="Critical">Critical</option>
             </select>
           </div>
 
@@ -314,10 +305,7 @@
 
       </form>
 
-      <div
-        id="message"
-        class="message"
-      ></div>
+      <div id="message" class="message"></div>
 
     </div>
 
@@ -326,9 +314,7 @@
 
       <div class="ticket-header">
 
-        <h2>
-          Daftar Ticket
-        </h2>
+        <h2>Daftar Ticket</h2>
 
         <button
           id="refreshButton"
@@ -355,16 +341,11 @@
           </thead>
 
           <tbody id="ticketTable">
-
             <tr>
-              <td
-                colspan="5"
-                class="loading"
-              >
+              <td colspan="5" class="loading">
                 Memuat ticket...
               </td>
             </tr>
-
           </tbody>
 
         </table>
@@ -404,36 +385,37 @@
       document.getElementById("message");
 
 
-    function showMessage(
-      text,
-      type
-    ) {
-
+    function showMessage(text, type) {
       message.textContent = text;
-
-      message.className =
-        `message ${type}`;
-
+      message.className = `message ${type}`;
     }
 
 
     function clearMessage() {
-
       message.textContent = "";
-
-      message.className =
-        "message";
-
+      message.className = "message";
     }
 
 
     function getPriorityClass(priority) {
-
       return (
         "priority-" +
         priority.toLowerCase()
       );
+    }
 
+
+    function getStatusClass(status) {
+
+      if (status === "In Progress") {
+        return "status-progress";
+      }
+
+      if (status === "Resolved") {
+        return "status-resolved";
+      }
+
+      return "status-open";
     }
 
 
@@ -449,14 +431,10 @@
       return date.toLocaleString(
         "id-ID"
       );
-
     }
 
 
-    function addCell(
-      row,
-      value
-    ) {
+    function addCell(row, value) {
 
       const cell =
         document.createElement("td");
@@ -467,6 +445,88 @@
       row.appendChild(cell);
 
       return cell;
+    }
+
+
+    async function updateTicketStatus(
+      ticketId,
+      newStatus,
+      selectElement,
+      oldStatus
+    ) {
+
+      try {
+
+        selectElement.disabled = true;
+
+        clearMessage();
+
+
+        const response =
+          await fetch(
+            `/api/tickets/${ticketId}/status`,
+            {
+              method: "PATCH",
+
+              headers: {
+                "Content-Type":
+                  "application/json"
+              },
+
+              body: JSON.stringify({
+                status: newStatus
+              })
+            }
+          );
+
+
+        const result =
+          await response.json();
+
+
+        if (!response.ok) {
+
+          throw new Error(
+            result.error ||
+            "Gagal mengubah status ticket"
+          );
+        }
+
+
+        selectElement.className =
+          `status-select ${getStatusClass(
+            newStatus
+          )}`;
+
+
+        showMessage(
+          `Ticket #${ticketId} diubah menjadi ${newStatus}.`,
+          "success"
+        );
+
+      }
+      catch (error) {
+
+        selectElement.value =
+          oldStatus;
+
+        selectElement.className =
+          `status-select ${getStatusClass(
+            oldStatus
+          )}`;
+
+
+        showMessage(
+          error.message,
+          "error"
+        );
+
+      }
+      finally {
+
+        selectElement.disabled = false;
+
+      }
 
     }
 
@@ -475,8 +535,11 @@
 
       ticketTable.innerHTML = "";
 
-      if (!Array.isArray(tickets) ||
-          tickets.length === 0) {
+
+      if (
+        !Array.isArray(tickets) ||
+        tickets.length === 0
+      ) {
 
         const row =
           document.createElement("tr");
@@ -541,20 +604,79 @@
         );
 
 
+        // STATUS DROPDOWN
         const statusCell =
           document.createElement("td");
 
-        const statusBadge =
-          document.createElement("span");
+        const statusSelect =
+          document.createElement("select");
 
-        statusBadge.className =
-          "status";
 
-        statusBadge.textContent =
-          ticket.status;
+        statusSelect.className =
+          `status-select ${getStatusClass(
+            ticket.status
+          )}`;
+
+
+        const statuses = [
+          "Open",
+          "In Progress",
+          "Resolved"
+        ];
+
+
+        statuses.forEach(status => {
+
+          const option =
+            document.createElement("option");
+
+          option.value =
+            status;
+
+          option.textContent =
+            status;
+
+
+          if (status === ticket.status) {
+            option.selected = true;
+          }
+
+
+          statusSelect.appendChild(
+            option
+          );
+
+        });
+
+
+        statusSelect.addEventListener(
+          "change",
+          async event => {
+
+            const oldStatus =
+              ticket.status;
+
+            const newStatus =
+              event.target.value;
+
+
+            await updateTicketStatus(
+              ticket.id,
+              newStatus,
+              statusSelect,
+              oldStatus
+            );
+
+
+            ticket.status =
+              statusSelect.value;
+
+          }
+        );
+
 
         statusCell.appendChild(
-          statusBadge
+          statusSelect
         );
 
         row.appendChild(
@@ -584,6 +706,7 @@
       try {
 
         refreshButton.disabled = true;
+
 
         const response =
           await fetch(
