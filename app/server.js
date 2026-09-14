@@ -4,8 +4,10 @@ const bcrypt = require("bcryptjs");
 
 const {
   createToken,
-  requireAuth
+  requireAuth,
+  requireRole
 } = require("./auth");
+
 
 const {
   validateTicketInput,
@@ -188,7 +190,7 @@ app.post("/auth/login", async (req, res) => {
 // =========================================================
 
 app.get(
-  "/auth/me",
+  "/tickets",
   requireAuth,
   async (req, res) => {
     try {
@@ -407,7 +409,9 @@ app.post("/tickets", async (req, res) => {
 // =========================================================
 
 app.patch(
-  "/tickets/:id",
+  "/tickets/:id/status",
+  requireAuth,
+  requireRole("IT Support", "Admin"),
   async (req, res) => {
     try {
       const id =
