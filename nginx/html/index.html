@@ -42,7 +42,7 @@
       border-radius: 12px;
       padding: 24px;
       margin-bottom: 24px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      box-shadow: 0 1px 3px rgba(0,0,0,.08);
     }
 
     .card h2 {
@@ -52,23 +52,9 @@
 
     .form-grid {
       display: grid;
-      grid-template-columns: 1fr 220px 160px;
+      grid-template-columns: 1fr 220px 180px;
       gap: 14px;
       align-items: end;
-    }
-
-    .edit-card {
-      display: none;
-      border: 2px solid #2563eb;
-    }
-
-    .edit-card.active {
-      display: block;
-    }
-
-    .edit-actions {
-      display: flex;
-      gap: 10px;
     }
 
     .form-group {
@@ -101,15 +87,15 @@
     button {
       border: none;
       border-radius: 7px;
-      padding: 11px 16px;
+      padding: 10px 14px;
       cursor: pointer;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: bold;
     }
 
     button:disabled,
     select:disabled {
-      opacity: 0.6;
+      opacity: .55;
       cursor: not-allowed;
     }
 
@@ -127,19 +113,20 @@
       color: #111827;
     }
 
-    .btn-secondary:hover {
-      background: #d1d5db;
-    }
-
     .btn-edit {
       background: #0f766e;
       color: white;
-      padding: 7px 12px;
-      font-size: 12px;
     }
 
-    .btn-edit:hover {
-      background: #115e59;
+    .btn-close {
+      background: #991b1b;
+      color: white;
+    }
+
+    .actions {
+      display: flex;
+      gap: 7px;
+      align-items: center;
     }
 
     .message {
@@ -162,6 +149,20 @@
       color: #991b1b;
     }
 
+    .edit-card {
+      display: none;
+      border: 2px solid #2563eb;
+    }
+
+    .edit-card.active {
+      display: block;
+    }
+
+    .edit-actions {
+      display: flex;
+      gap: 10px;
+    }
+
     .ticket-header {
       display: flex;
       justify-content: space-between;
@@ -172,11 +173,6 @@
 
     .ticket-header h2 {
       margin: 0;
-    }
-
-    .refresh-button {
-      background: #e5e7eb;
-      color: #111827;
     }
 
     .table-wrapper {
@@ -191,8 +187,8 @@
     th,
     td {
       padding: 13px 12px;
-      text-align: left;
       border-bottom: 1px solid #e5e7eb;
+      text-align: left;
       white-space: nowrap;
     }
 
@@ -255,6 +251,27 @@
       color: #166534;
     }
 
+    .status-closed {
+      display: inline-block;
+      padding: 7px 10px;
+      border-radius: 7px;
+      background: #e5e7eb;
+      color: #4b5563;
+      font-weight: bold;
+      font-size: 12px;
+    }
+
+    .closed-row {
+      background: #f9fafb;
+      color: #6b7280;
+    }
+
+    .closed-text {
+      font-size: 12px;
+      font-weight: bold;
+      color: #6b7280;
+    }
+
     .loading {
       text-align: center;
       padding: 30px;
@@ -278,8 +295,10 @@
         flex-direction: column;
       }
 
+      .actions,
       .edit-actions {
         flex-direction: column;
+        align-items: stretch;
       }
     }
   </style>
@@ -287,871 +306,1090 @@
 
 <body>
 
-  <div class="container">
+<div class="container">
 
-    <div class="header">
-      <h1>IT Helpdesk</h1>
-      <p>Sistem pencatatan dan monitoring tiket IT Support</p>
-    </div>
+  <div class="header">
+    <h1>IT Helpdesk</h1>
+    <p>Sistem pencatatan dan monitoring tiket IT Support</p>
+  </div>
 
 
-    <!-- CREATE TICKET -->
-    <div class="card">
+  <!-- CREATE -->
+  <div class="card">
 
-      <h2>Buat Ticket Baru</h2>
+    <h2>Buat Ticket Baru</h2>
 
-      <form id="ticketForm">
+    <form id="ticketForm">
 
-        <div class="form-grid">
+      <div class="form-grid">
 
-          <div class="form-group">
-            <label for="title">Judul Masalah</label>
+        <div class="form-group">
+          <label for="title">
+            Judul Masalah
+          </label>
 
-            <input
-              type="text"
-              id="title"
-              placeholder="Contoh: Printer Ruang TU Tidak Bisa Print"
-              maxlength="255"
-              required
-            >
-          </div>
-
-          <div class="form-group">
-            <label for="priority">Priority</label>
-
-            <select id="priority">
-              <option value="Low">Low</option>
-              <option value="Medium" selected>Medium</option>
-              <option value="High">High</option>
-              <option value="Critical">Critical</option>
-            </select>
-          </div>
-
-          <button
-            id="submitButton"
-            type="submit"
-            class="btn-primary"
+          <input
+            type="text"
+            id="title"
+            maxlength="255"
+            placeholder="Contoh: Access Point Lantai 2 Offline"
+            required
           >
-            Buat Ticket
-          </button>
-
         </div>
 
-      </form>
+        <div class="form-group">
+          <label for="priority">
+            Priority
+          </label>
 
-      <div id="message" class="message"></div>
-
-    </div>
-
-
-    <!-- EDIT TICKET -->
-    <div
-      id="editCard"
-      class="card edit-card"
-    >
-
-      <h2 id="editTitle">
-        Edit Ticket
-      </h2>
-
-      <form id="editForm">
-
-        <div class="form-grid">
-
-          <div class="form-group">
-
-            <label for="editTicketTitle">
-              Judul Masalah
-            </label>
-
-            <input
-              type="text"
-              id="editTicketTitle"
-              maxlength="255"
-              required
-            >
-
-          </div>
-
-          <div class="form-group">
-
-            <label for="editPriority">
-              Priority
-            </label>
-
-            <select id="editPriority">
-              <option value="Low">Low</option>
-              <option value="Medium">Medium</option>
-              <option value="High">High</option>
-              <option value="Critical">Critical</option>
-            </select>
-
-          </div>
-
-          <div class="edit-actions">
-
-            <button
-              id="saveEditButton"
-              type="submit"
-              class="btn-primary"
-            >
-              Simpan
-            </button>
-
-            <button
-              id="cancelEditButton"
-              type="button"
-              class="btn-secondary"
-            >
-              Batal
-            </button>
-
-          </div>
-
+          <select id="priority">
+            <option value="Low">Low</option>
+            <option value="Medium" selected>Medium</option>
+            <option value="High">High</option>
+            <option value="Critical">Critical</option>
+          </select>
         </div>
-
-      </form>
-
-    </div>
-
-
-    <!-- TICKET LIST -->
-    <div class="card">
-
-      <div class="ticket-header">
-
-        <h2>Daftar Ticket</h2>
 
         <button
-          id="refreshButton"
-          class="refresh-button"
-          type="button"
+          id="submitButton"
+          type="submit"
+          class="btn-primary"
         >
-          Refresh
+          Buat Ticket
         </button>
 
       </div>
 
-      <div class="table-wrapper">
+    </form>
 
-        <table>
+    <div
+      id="message"
+      class="message"
+    ></div>
 
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Judul Masalah</th>
-              <th>Priority</th>
-              <th>Status</th>
-              <th>Dibuat</th>
-              <th>Aksi</th>
-            </tr>
-          </thead>
+  </div>
 
-          <tbody id="ticketTable">
 
-            <tr>
-              <td colspan="6" class="loading">
-                Memuat ticket...
-              </td>
-            </tr>
+  <!-- EDIT -->
+  <div
+    id="editCard"
+    class="card edit-card"
+  >
 
-          </tbody>
+    <h2 id="editTitle">
+      Edit Ticket
+    </h2>
 
-        </table>
+    <form id="editForm">
+
+      <div class="form-grid">
+
+        <div class="form-group">
+
+          <label for="editTicketTitle">
+            Judul Masalah
+          </label>
+
+          <input
+            type="text"
+            id="editTicketTitle"
+            maxlength="255"
+            required
+          >
+
+        </div>
+
+        <div class="form-group">
+
+          <label for="editPriority">
+            Priority
+          </label>
+
+          <select id="editPriority">
+            <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+            <option value="Critical">Critical</option>
+          </select>
+
+        </div>
+
+        <div class="edit-actions">
+
+          <button
+            id="saveEditButton"
+            type="submit"
+            class="btn-primary"
+          >
+            Simpan
+          </button>
+
+          <button
+            id="cancelEditButton"
+            type="button"
+            class="btn-secondary"
+          >
+            Batal
+          </button>
+
+        </div>
 
       </div>
 
+    </form>
+
+  </div>
+
+
+  <!-- LIST -->
+  <div class="card">
+
+    <div class="ticket-header">
+
+      <h2>Daftar Ticket</h2>
+
+      <button
+        id="refreshButton"
+        type="button"
+        class="btn-secondary"
+      >
+        Refresh
+      </button>
+
     </div>
 
-    <div class="footer">
-      DevOps Helpdesk
+
+    <div class="table-wrapper">
+
+      <table>
+
+        <thead>
+        <tr>
+          <th>ID</th>
+          <th>Judul Masalah</th>
+          <th>Priority</th>
+          <th>Status</th>
+          <th>Dibuat</th>
+          <th>Aksi</th>
+        </tr>
+        </thead>
+
+        <tbody id="ticketTable">
+
+        <tr>
+          <td colspan="6" class="loading">
+            Memuat ticket...
+          </td>
+        </tr>
+
+        </tbody>
+
+      </table>
+
     </div>
 
   </div>
 
 
-  <script>
+  <div class="footer">
+    DevOps Helpdesk
+  </div>
 
-    let editingTicketId = null;
-
-    const ticketForm =
-      document.getElementById("ticketForm");
-
-    const titleInput =
-      document.getElementById("title");
-
-    const priorityInput =
-      document.getElementById("priority");
-
-    const submitButton =
-      document.getElementById("submitButton");
-
-    const message =
-      document.getElementById("message");
-
-    const ticketTable =
-      document.getElementById("ticketTable");
-
-    const refreshButton =
-      document.getElementById("refreshButton");
-
-    const editCard =
-      document.getElementById("editCard");
-
-    const editForm =
-      document.getElementById("editForm");
-
-    const editTitle =
-      document.getElementById("editTitle");
-
-    const editTicketTitle =
-      document.getElementById("editTicketTitle");
-
-    const editPriority =
-      document.getElementById("editPriority");
-
-    const saveEditButton =
-      document.getElementById("saveEditButton");
-
-    const cancelEditButton =
-      document.getElementById("cancelEditButton");
+</div>
 
 
-    function showMessage(text, type) {
-      message.textContent = text;
-      message.className = `message ${type}`;
-    }
+<script>
+
+let editingTicketId = null;
 
 
-    function clearMessage() {
-      message.textContent = "";
-      message.className = "message";
-    }
+const ticketForm =
+  document.getElementById("ticketForm");
+
+const titleInput =
+  document.getElementById("title");
+
+const priorityInput =
+  document.getElementById("priority");
+
+const submitButton =
+  document.getElementById("submitButton");
+
+const message =
+  document.getElementById("message");
+
+const ticketTable =
+  document.getElementById("ticketTable");
+
+const refreshButton =
+  document.getElementById("refreshButton");
+
+const editCard =
+  document.getElementById("editCard");
+
+const editForm =
+  document.getElementById("editForm");
+
+const editTitle =
+  document.getElementById("editTitle");
+
+const editTicketTitle =
+  document.getElementById("editTicketTitle");
+
+const editPriority =
+  document.getElementById("editPriority");
+
+const saveEditButton =
+  document.getElementById("saveEditButton");
+
+const cancelEditButton =
+  document.getElementById("cancelEditButton");
 
 
-    function getPriorityClass(priority) {
-      return `priority-${priority.toLowerCase()}`;
-    }
+function showMessage(text, type) {
+
+  message.textContent = text;
+
+  message.className =
+    `message ${type}`;
+}
 
 
-    function getStatusClass(status) {
+function clearMessage() {
 
-      if (status === "In Progress") {
-        return "status-progress";
+  message.textContent = "";
+
+  message.className =
+    "message";
+}
+
+
+function getPriorityClass(priority) {
+
+  return (
+    "priority-" +
+    priority.toLowerCase()
+  );
+}
+
+
+function getStatusClass(status) {
+
+  if (status === "In Progress") {
+    return "status-progress";
+  }
+
+  if (status === "Resolved") {
+    return "status-resolved";
+  }
+
+  return "status-open";
+}
+
+
+function formatDate(value) {
+
+  if (!value) {
+    return "-";
+  }
+
+  return new Date(
+    value
+  ).toLocaleString("id-ID");
+}
+
+
+function addCell(row, value) {
+
+  const cell =
+    document.createElement("td");
+
+  cell.textContent =
+    value ?? "-";
+
+  row.appendChild(cell);
+
+  return cell;
+}
+
+
+function openEditTicket(ticket) {
+
+  if (ticket.status === "Closed") {
+    return;
+  }
+
+  editingTicketId =
+    ticket.id;
+
+  editTitle.textContent =
+    `Edit Ticket #${ticket.id}`;
+
+  editTicketTitle.value =
+    ticket.title;
+
+  editPriority.value =
+    ticket.priority;
+
+  editCard.classList.add(
+    "active"
+  );
+
+  editCard.scrollIntoView({
+    behavior: "smooth",
+    block: "center"
+  });
+}
+
+
+function closeEditTicket() {
+
+  editingTicketId = null;
+
+  editForm.reset();
+
+  editCard.classList.remove(
+    "active"
+  );
+}
+
+
+async function patchStatus(
+  ticketId,
+  status
+) {
+
+  const response =
+    await fetch(
+      `/api/tickets/${ticketId}/status`,
+      {
+        method: "PATCH",
+
+        headers: {
+          "Content-Type":
+            "application/json"
+        },
+
+        body: JSON.stringify({
+          status
+        })
       }
+    );
 
-      if (status === "Resolved") {
-        return "status-resolved";
-      }
+  const result =
+    await response.json();
 
-      return "status-open";
-    }
+  if (!response.ok) {
 
+    throw new Error(
+      result.error ||
+      "Gagal mengubah status ticket"
+    );
 
-    function formatDate(dateValue) {
+  }
 
-      if (!dateValue) {
-        return "-";
-      }
-
-      return new Date(
-        dateValue
-      ).toLocaleString("id-ID");
-    }
+  return result;
+}
 
 
-    function addCell(row, value) {
+async function updateTicketStatus(
+  ticket,
+  newStatus,
+  selectElement
+) {
 
-      const cell =
-        document.createElement("td");
+  const oldStatus =
+    ticket.status;
 
-      cell.textContent =
-        value ?? "-";
+  try {
 
-      row.appendChild(cell);
+    selectElement.disabled = true;
 
-      return cell;
-    }
+    clearMessage();
 
+    await patchStatus(
+      ticket.id,
+      newStatus
+    );
 
-    function openEditTicket(ticket) {
+    ticket.status =
+      newStatus;
 
-      editingTicketId =
-        ticket.id;
+    selectElement.className =
+      `status-select ${getStatusClass(newStatus)}`;
 
-      editTitle.textContent =
-        `Edit Ticket #${ticket.id}`;
+    showMessage(
+      `Ticket #${ticket.id} diubah menjadi ${newStatus}.`,
+      "success"
+    );
 
-      editTicketTitle.value =
-        ticket.title;
+  }
+  catch (error) {
 
-      editPriority.value =
-        ticket.priority;
+    selectElement.value =
+      oldStatus;
 
-      editCard.classList.add(
-        "active"
-      );
+    selectElement.className =
+      `status-select ${getStatusClass(oldStatus)}`;
 
-      editCard.scrollIntoView({
-        behavior: "smooth",
-        block: "center"
-      });
+    showMessage(
+      error.message,
+      "error"
+    );
 
-      editTicketTitle.focus();
-    }
+  }
+  finally {
 
+    selectElement.disabled =
+      false;
 
-    function closeEditTicket() {
-
-      editingTicketId = null;
-
-      editForm.reset();
-
-      editCard.classList.remove(
-        "active"
-      );
-    }
+  }
+}
 
 
-    async function updateTicketStatus(
-      ticketId,
-      newStatus,
-      selectElement,
-      oldStatus
+async function closeTicket(ticket) {
+
+  const confirmation =
+    confirm(
+      `Tutup Ticket #${ticket.id}?\n\n` +
+      `${ticket.title}\n\n` +
+      "Ticket yang sudah ditutup akan menjadi arsip."
+    );
+
+
+  if (!confirmation) {
+    return;
+  }
+
+
+  try {
+
+    clearMessage();
+
+    await patchStatus(
+      ticket.id,
+      "Closed"
+    );
+
+
+    showMessage(
+      `Ticket #${ticket.id} berhasil ditutup.`,
+      "success"
+    );
+
+
+    if (
+      editingTicketId ===
+      ticket.id
     ) {
-
-      try {
-
-        selectElement.disabled = true;
-
-        clearMessage();
-
-        const response =
-          await fetch(
-            `/api/tickets/${ticketId}/status`,
-            {
-              method: "PATCH",
-
-              headers: {
-                "Content-Type":
-                  "application/json"
-              },
-
-              body: JSON.stringify({
-                status: newStatus
-              })
-            }
-          );
-
-        const result =
-          await response.json();
-
-        if (!response.ok) {
-          throw new Error(
-            result.error ||
-            "Gagal mengubah status ticket"
-          );
-        }
-
-        selectElement.className =
-          `status-select ${getStatusClass(newStatus)}`;
-
-        showMessage(
-          `Ticket #${ticketId} diubah menjadi ${newStatus}.`,
-          "success"
-        );
-
-        return true;
-
-      }
-      catch (error) {
-
-        selectElement.value =
-          oldStatus;
-
-        selectElement.className =
-          `status-select ${getStatusClass(oldStatus)}`;
-
-        showMessage(
-          error.message,
-          "error"
-        );
-
-        return false;
-
-      }
-      finally {
-
-        selectElement.disabled = false;
-
-      }
+      closeEditTicket();
     }
 
 
-    function renderTickets(tickets) {
+    await loadTickets();
 
-      ticketTable.innerHTML = "";
+  }
+  catch (error) {
 
-      if (
-        !Array.isArray(tickets) ||
-        tickets.length === 0
-      ) {
+    showMessage(
+      error.message,
+      "error"
+    );
 
-        const row =
-          document.createElement("tr");
-
-        const cell =
-          document.createElement("td");
-
-        cell.colSpan = 6;
-
-        cell.className =
-          "loading";
-
-        cell.textContent =
-          "Belum ada ticket.";
-
-        row.appendChild(cell);
-
-        ticketTable.appendChild(row);
-
-        return;
-      }
+  }
+}
 
 
-      tickets.forEach(ticket => {
+function renderTickets(tickets) {
 
-        const row =
-          document.createElement("tr");
-
-
-        addCell(
-          row,
-          ticket.id
-        );
+  ticketTable.innerHTML = "";
 
 
-        addCell(
-          row,
-          ticket.title
-        );
+  if (
+    !Array.isArray(tickets) ||
+    tickets.length === 0
+  ) {
+
+    const row =
+      document.createElement("tr");
+
+    const cell =
+      document.createElement("td");
+
+    cell.colSpan = 6;
+
+    cell.className =
+      "loading";
+
+    cell.textContent =
+      "Belum ada ticket.";
+
+    row.appendChild(cell);
+
+    ticketTable.appendChild(row);
+
+    return;
+  }
 
 
-        const priorityCell =
-          document.createElement("td");
+  tickets.forEach(ticket => {
 
-        const priorityBadge =
-          document.createElement("span");
-
-        priorityBadge.className =
-          `priority ${getPriorityClass(ticket.priority)}`;
-
-        priorityBadge.textContent =
-          ticket.priority;
-
-        priorityCell.appendChild(
-          priorityBadge
-        );
-
-        row.appendChild(
-          priorityCell
-        );
+    const isClosed =
+      ticket.status === "Closed";
 
 
-        // STATUS
-        const statusCell =
-          document.createElement("td");
-
-        const statusSelect =
-          document.createElement("select");
-
-        statusSelect.className =
-          `status-select ${getStatusClass(ticket.status)}`;
+    const row =
+      document.createElement("tr");
 
 
-        [
-          "Open",
-          "In Progress",
-          "Resolved"
-        ].forEach(status => {
+    if (isClosed) {
+      row.classList.add(
+        "closed-row"
+      );
+    }
 
-          const option =
-            document.createElement("option");
 
-          option.value = status;
+    addCell(
+      row,
+      ticket.id
+    );
 
-          option.textContent = status;
 
-          if (status === ticket.status) {
-            option.selected = true;
-          }
+    addCell(
+      row,
+      ticket.title
+    );
 
-          statusSelect.appendChild(
-            option
+
+    // PRIORITY
+    const priorityCell =
+      document.createElement("td");
+
+    const priorityBadge =
+      document.createElement("span");
+
+    priorityBadge.className =
+      `priority ${getPriorityClass(
+        ticket.priority
+      )}`;
+
+    priorityBadge.textContent =
+      ticket.priority;
+
+    priorityCell.appendChild(
+      priorityBadge
+    );
+
+    row.appendChild(
+      priorityCell
+    );
+
+
+    // STATUS
+    const statusCell =
+      document.createElement("td");
+
+
+    if (isClosed) {
+
+      const closedBadge =
+        document.createElement("span");
+
+      closedBadge.className =
+        "status-closed";
+
+      closedBadge.textContent =
+        "Closed";
+
+      statusCell.appendChild(
+        closedBadge
+      );
+
+    }
+    else {
+
+      const statusSelect =
+        document.createElement("select");
+
+      statusSelect.className =
+        `status-select ${getStatusClass(
+          ticket.status
+        )}`;
+
+
+      [
+        "Open",
+        "In Progress",
+        "Resolved"
+      ].forEach(status => {
+
+        const option =
+          document.createElement(
+            "option"
           );
 
-        });
+        option.value =
+          status;
+
+        option.textContent =
+          status;
 
 
-        statusSelect.addEventListener(
-          "change",
-          async event => {
-
-            const oldStatus =
-              ticket.status;
-
-            const newStatus =
-              event.target.value;
-
-            const success =
-              await updateTicketStatus(
-                ticket.id,
-                newStatus,
-                statusSelect,
-                oldStatus
-              );
-
-            if (success) {
-              ticket.status =
-                newStatus;
-            }
-
-          }
-        );
+        if (
+          status ===
+          ticket.status
+        ) {
+          option.selected =
+            true;
+        }
 
 
-        statusCell.appendChild(
-          statusSelect
-        );
-
-        row.appendChild(
-          statusCell
-        );
-
-
-        addCell(
-          row,
-          formatDate(
-            ticket.created_at
-          )
-        );
-
-
-        // ACTION
-        const actionCell =
-          document.createElement("td");
-
-        const editButton =
-          document.createElement("button");
-
-        editButton.type =
-          "button";
-
-        editButton.className =
-          "btn-edit";
-
-        editButton.textContent =
-          "Edit";
-
-        editButton.addEventListener(
-          "click",
-          () => {
-
-            openEditTicket(
-              ticket
-            );
-
-          }
-        );
-
-        actionCell.appendChild(
-          editButton
-        );
-
-        row.appendChild(
-          actionCell
-        );
-
-
-        ticketTable.appendChild(
-          row
+        statusSelect.appendChild(
+          option
         );
 
       });
 
-    }
 
+      statusSelect.addEventListener(
+        "change",
+        async event => {
 
-    async function loadTickets() {
-
-      try {
-
-        refreshButton.disabled = true;
-
-        const response =
-          await fetch(
-            "/api/tickets"
-          );
-
-        if (!response.ok) {
-          throw new Error(
-            "Gagal mengambil data ticket"
-          );
-        }
-
-        const tickets =
-          await response.json();
-
-        renderTickets(
-          tickets
-        );
-
-      }
-      catch (error) {
-
-        ticketTable.innerHTML = "";
-
-        const row =
-          document.createElement("tr");
-
-        const cell =
-          document.createElement("td");
-
-        cell.colSpan = 6;
-
-        cell.className =
-          "loading";
-
-        cell.textContent =
-          "Gagal memuat ticket";
-
-        row.appendChild(cell);
-
-        ticketTable.appendChild(row);
-
-        console.error(error);
-
-      }
-      finally {
-
-        refreshButton.disabled = false;
-
-      }
-    }
-
-
-    async function createTicket(event) {
-
-      event.preventDefault();
-
-      clearMessage();
-
-      const title =
-        titleInput.value.trim();
-
-      const priority =
-        priorityInput.value;
-
-      if (!title) {
-
-        showMessage(
-          "Judul masalah wajib diisi.",
-          "error"
-        );
-
-        return;
-      }
-
-      try {
-
-        submitButton.disabled = true;
-
-        submitButton.textContent =
-          "Menyimpan...";
-
-        const response =
-          await fetch(
-            "/api/tickets",
-            {
-              method: "POST",
-
-              headers: {
-                "Content-Type":
-                  "application/json"
-              },
-
-              body: JSON.stringify({
-                title,
-                priority
-              })
-            }
-          );
-
-        const result =
-          await response.json();
-
-        if (!response.ok) {
-
-          throw new Error(
-            result.error ||
-            "Gagal membuat ticket"
+          await updateTicketStatus(
+            ticket,
+            event.target.value,
+            statusSelect
           );
 
         }
+      );
 
-        showMessage(
-          `Ticket #${result.ticket.id} berhasil dibuat.`,
-          "success"
-        );
 
-        ticketForm.reset();
+      statusCell.appendChild(
+        statusSelect
+      );
 
-        priorityInput.value =
-          "Medium";
-
-        await loadTickets();
-
-        titleInput.focus();
-
-      }
-      catch (error) {
-
-        showMessage(
-          error.message,
-          "error"
-        );
-
-      }
-      finally {
-
-        submitButton.disabled = false;
-
-        submitButton.textContent =
-          "Buat Ticket";
-
-      }
     }
 
 
-    async function saveTicketEdit(event) {
+    row.appendChild(
+      statusCell
+    );
 
-      event.preventDefault();
 
-      if (!editingTicketId) {
-        return;
-      }
+    addCell(
+      row,
+      formatDate(
+        ticket.created_at
+      )
+    );
 
-      const title =
-        editTicketTitle.value.trim();
 
-      const priority =
-        editPriority.value;
+    // ACTION
+    const actionCell =
+      document.createElement("td");
 
-      if (!title) {
 
-        showMessage(
-          "Judul ticket wajib diisi.",
-          "error"
-        );
+    if (isClosed) {
 
-        return;
-      }
+      const closedText =
+        document.createElement("span");
 
-      try {
+      closedText.className =
+        "closed-text";
 
-        saveEditButton.disabled =
-          true;
+      closedText.textContent =
+        "Ticket ditutup";
 
-        saveEditButton.textContent =
-          "Menyimpan...";
+      actionCell.appendChild(
+        closedText
+      );
 
-        const response =
-          await fetch(
-            `/api/tickets/${editingTicketId}`,
-            {
-              method: "PATCH",
+    }
+    else {
 
-              headers: {
-                "Content-Type":
-                  "application/json"
-              },
+      const actions =
+        document.createElement("div");
 
-              body: JSON.stringify({
-                title,
-                priority
-              })
-            }
+      actions.className =
+        "actions";
+
+
+      const editButton =
+        document.createElement("button");
+
+      editButton.type =
+        "button";
+
+      editButton.className =
+        "btn-edit";
+
+      editButton.textContent =
+        "Edit";
+
+      editButton.addEventListener(
+        "click",
+        () => {
+          openEditTicket(
+            ticket
           );
-
-        const result =
-          await response.json();
-
-        if (!response.ok) {
-
-          throw new Error(
-            result.error ||
-            "Gagal memperbarui ticket"
-          );
-
         }
+      );
 
-        showMessage(
-          `Ticket #${editingTicketId} berhasil diperbarui.`,
-          "success"
-        );
 
-        closeEditTicket();
+      const closeButton =
+        document.createElement("button");
 
-        await loadTickets();
+      closeButton.type =
+        "button";
 
-      }
-      catch (error) {
+      closeButton.className =
+        "btn-close";
 
-        showMessage(
-          error.message,
-          "error"
-        );
+      closeButton.textContent =
+        "Tutup";
 
-      }
-      finally {
+      closeButton.addEventListener(
+        "click",
+        async () => {
+          await closeTicket(
+            ticket
+          );
+        }
+      );
 
-        saveEditButton.disabled =
-          false;
 
-        saveEditButton.textContent =
-          "Simpan";
+      actions.appendChild(
+        editButton
+      );
 
-      }
+      actions.appendChild(
+        closeButton
+      );
+
+      actionCell.appendChild(
+        actions
+      );
+
     }
 
 
-    ticketForm.addEventListener(
-      "submit",
-      createTicket
+    row.appendChild(
+      actionCell
     );
 
 
-    editForm.addEventListener(
-      "submit",
-      saveTicketEdit
+    ticketTable.appendChild(
+      row
+    );
+
+  });
+
+}
+
+
+async function loadTickets() {
+
+  try {
+
+    refreshButton.disabled =
+      true;
+
+
+    const response =
+      await fetch(
+        "/api/tickets"
+      );
+
+
+    if (!response.ok) {
+      throw new Error(
+        "Gagal mengambil data ticket"
+      );
+    }
+
+
+    const tickets =
+      await response.json();
+
+
+    renderTickets(
+      tickets
+    );
+
+  }
+  catch (error) {
+
+    ticketTable.innerHTML = "";
+
+
+    const row =
+      document.createElement("tr");
+
+    const cell =
+      document.createElement("td");
+
+    cell.colSpan = 6;
+
+    cell.className =
+      "loading";
+
+    cell.textContent =
+      "Gagal memuat ticket";
+
+
+    row.appendChild(cell);
+
+    ticketTable.appendChild(row);
+
+
+    console.error(error);
+
+  }
+  finally {
+
+    refreshButton.disabled =
+      false;
+
+  }
+
+}
+
+
+async function createTicket(event) {
+
+  event.preventDefault();
+
+  clearMessage();
+
+
+  const title =
+    titleInput.value.trim();
+
+  const priority =
+    priorityInput.value;
+
+
+  if (!title) {
+
+    showMessage(
+      "Judul masalah wajib diisi.",
+      "error"
+    );
+
+    return;
+  }
+
+
+  try {
+
+    submitButton.disabled =
+      true;
+
+    submitButton.textContent =
+      "Menyimpan...";
+
+
+    const response =
+      await fetch(
+        "/api/tickets",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+
+          body: JSON.stringify({
+            title,
+            priority
+          })
+        }
+      );
+
+
+    const result =
+      await response.json();
+
+
+    if (!response.ok) {
+
+      throw new Error(
+        result.error ||
+        "Gagal membuat ticket"
+      );
+
+    }
+
+
+    showMessage(
+      `Ticket #${result.ticket.id} berhasil dibuat.`,
+      "success"
     );
 
 
-    cancelEditButton.addEventListener(
-      "click",
-      closeEditTicket
+    ticketForm.reset();
+
+    priorityInput.value =
+      "Medium";
+
+
+    await loadTickets();
+
+    titleInput.focus();
+
+  }
+  catch (error) {
+
+    showMessage(
+      error.message,
+      "error"
+    );
+
+  }
+  finally {
+
+    submitButton.disabled =
+      false;
+
+    submitButton.textContent =
+      "Buat Ticket";
+
+  }
+
+}
+
+
+async function saveTicketEdit(event) {
+
+  event.preventDefault();
+
+
+  if (!editingTicketId) {
+    return;
+  }
+
+
+  const title =
+    editTicketTitle.value.trim();
+
+  const priority =
+    editPriority.value;
+
+
+  if (!title) {
+
+    showMessage(
+      "Judul ticket wajib diisi.",
+      "error"
+    );
+
+    return;
+  }
+
+
+  try {
+
+    saveEditButton.disabled =
+      true;
+
+    saveEditButton.textContent =
+      "Menyimpan...";
+
+
+    const response =
+      await fetch(
+        `/api/tickets/${editingTicketId}`,
+        {
+          method: "PATCH",
+
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+
+          body: JSON.stringify({
+            title,
+            priority
+          })
+        }
+      );
+
+
+    const result =
+      await response.json();
+
+
+    if (!response.ok) {
+
+      throw new Error(
+        result.error ||
+        "Gagal memperbarui ticket"
+      );
+
+    }
+
+
+    showMessage(
+      `Ticket #${editingTicketId} berhasil diperbarui.`,
+      "success"
     );
 
 
-    refreshButton.addEventListener(
-      "click",
-      loadTickets
+    closeEditTicket();
+
+    await loadTickets();
+
+  }
+  catch (error) {
+
+    showMessage(
+      error.message,
+      "error"
     );
 
+  }
+  finally {
 
-    loadTickets();
+    saveEditButton.disabled =
+      false;
 
-  </script>
+    saveEditButton.textContent =
+      "Simpan";
+
+  }
+
+}
+
+
+ticketForm.addEventListener(
+  "submit",
+  createTicket
+);
+
+
+editForm.addEventListener(
+  "submit",
+  saveTicketEdit
+);
+
+
+cancelEditButton.addEventListener(
+  "click",
+  closeEditTicket
+);
+
+
+refreshButton.addEventListener(
+  "click",
+  loadTickets
+);
+
+
+loadTickets();
+
+</script>
 
 </body>
 </html>
