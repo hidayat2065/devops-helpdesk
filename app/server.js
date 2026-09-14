@@ -1,5 +1,6 @@
 const express = require("express");
 const { Pool } = require("pg");
+const { validateTicketInput } = require("./validation");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -17,7 +18,7 @@ const pool = new Pool({
 app.get("/", (req, res) => {
   res.json({
     application: "DevOps Helpdesk API",
-    version: "1.0.0",
+    version: "1.1.0",
     status: "running"
   });
 });
@@ -49,6 +50,38 @@ app.get("/tickets", async (req, res) => {
     `);
 
     res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({
+      error: error.message
+    });
+  }
+});
+
+app.post("/tickets", async (req, res) => {
+  try {
+    const validation = validateTicketInput(req.body);
+
+    if (!validation.valid) {
+      return res.status(400).json({
+        error: validation.error
+      });
+    }
+
+    const { title, priority } = validation.value;
+
+    const result = await pool.query(
+      `
+        INSERT INTO tickets (title, priority, status)
+        VALUES ($1, $2, $3)
+        RETURNING id, title, priority, status, created_at
+      `,
+      [title, priority, "Open"]
+    );
+
+    res.status(201).json({
+      message: "Ticket berhasil dibuat",
+      ticket: result.rows[0]
+    });
   } catch (error) {
     res.status(500).json({
       error: error.message
