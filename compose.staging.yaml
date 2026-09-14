@@ -38,6 +38,7 @@ services:
       DB_NAME: helpdeskdb
       DB_USER: helpdesk
       DB_PASSWORD: staging123
+      JWT_SECRET: ${JWT_SECRET}
       PORT: 3000
 
     depends_on:

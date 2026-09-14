@@ -32,6 +32,7 @@ services:
       DB_NAME: ${PROD_DB_NAME:-helpdeskdb}
       DB_USER: ${PROD_DB_USER:-helpdesk_prod}
       DB_PASSWORD: ${PROD_DB_PASSWORD:?PROD_DB_PASSWORD is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       PORT: 3000
     depends_on:
       db:

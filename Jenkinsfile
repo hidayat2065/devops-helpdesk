@@ -11,6 +11,9 @@ pipeline {
         DB_IMAGE = "helpdesk-db-test:ci-${BUILD_NUMBER}"
         NGINX_IMAGE = "helpdesk-nginx:ci-${BUILD_NUMBER}"
 
+        // Secret untuk JWT authentication
+        JWT_SECRET = credentials('jwt-secret')
+
         // =========================================================
         // GITHUB CONTAINER REGISTRY
         // =========================================================
@@ -90,11 +93,13 @@ pipeline {
                     test -f app/package.json
                     test -f app/package-lock.json
                     test -f app/server.js
+                    test -f app/auth.js
                     test -f app/validation.js
                     test -f app/test/validation.test.js
 
                     test -f db/Dockerfile
                     test -f db/init.sql
+                    test -f db/migrations/001_users.sql
 
                     test -f nginx/Dockerfile
                     test -f nginx/nginx.conf
@@ -157,7 +162,15 @@ pipeline {
                 echo '=== SYNTAX CHECK ==='
 
                 sh '''
-                    docker run                       --rm                       ${APP_IMAGE}                       npm run check
+                    docker run \
+                      --rm \
+                      ${APP_IMAGE} \
+                      npm run check
+
+                    docker run \
+                      --rm \
+                      ${APP_IMAGE} \
+                      node --check auth.js
                 '''
             }
         }
@@ -251,7 +264,17 @@ pipeline {
                 echo '=== START TEST APPLICATION ==='
 
                 sh '''
-                    docker run -d                       --name ${APP_CONTAINER}                       --network ${CI_NETWORK}                       -e DB_HOST=${DB_CONTAINER}                       -e DB_PORT=5432                       -e DB_NAME=helpdeskdb                       -e DB_USER=helpdesk                       -e DB_PASSWORD=helpdesk123                       -e PORT=3000                       ${APP_IMAGE}
+                    docker run -d \
+                      --name ${APP_CONTAINER} \
+                      --network ${CI_NETWORK} \
+                      -e DB_HOST=${DB_CONTAINER} \
+                      -e DB_PORT=5432 \
+                      -e DB_NAME=helpdeskdb \
+                      -e DB_USER=helpdesk \
+                      -e DB_PASSWORD=helpdesk123 \
+                      -e JWT_SECRET="$JWT_SECRET" \
+                      -e PORT=3000 \
+                      ${APP_IMAGE}
                 '''
             }
         }
@@ -392,7 +415,14 @@ pipeline {
                 echo '=== PULL STAGING IMAGES FROM GHCR ==='
 
                 sh '''
-                    APP_IMAGE=${GHCR_APP_IMAGE}                     DB_IMAGE=${DB_IMAGE}                     NGINX_IMAGE=${GHCR_NGINX_IMAGE}                     docker compose                       -p helpdesk-staging                       -f compose.staging.yaml                       pull app nginx
+                    JWT_SECRET="$JWT_SECRET" \
+                    APP_IMAGE=${GHCR_APP_IMAGE} \
+                    DB_IMAGE=${DB_IMAGE} \
+                    NGINX_IMAGE=${GHCR_NGINX_IMAGE} \
+                    docker compose \
+                      -p helpdesk-staging \
+                      -f compose.staging.yaml \
+                      pull app nginx
                 '''
             }
         }
@@ -405,13 +435,27 @@ pipeline {
                 echo '=== DEPLOY STAGING FROM GHCR ==='
 
                 sh '''
-                    APP_IMAGE=${GHCR_APP_IMAGE}                     DB_IMAGE=${DB_IMAGE}                     NGINX_IMAGE=${GHCR_NGINX_IMAGE}                     docker compose                       -p helpdesk-staging                       -f compose.staging.yaml                       up -d
+                    JWT_SECRET="$JWT_SECRET" \
+                    APP_IMAGE=${GHCR_APP_IMAGE} \
+                    DB_IMAGE=${DB_IMAGE} \
+                    NGINX_IMAGE=${GHCR_NGINX_IMAGE} \
+                    docker compose \
+                      -p helpdesk-staging \
+                      -f compose.staging.yaml \
+                      up -d
                 '''
 
                 echo '=== STAGING CONTAINERS ==='
 
                 sh '''
-                    APP_IMAGE=${GHCR_APP_IMAGE}                     DB_IMAGE=${DB_IMAGE}                     NGINX_IMAGE=${GHCR_NGINX_IMAGE}                     docker compose                       -p helpdesk-staging                       -f compose.staging.yaml                       ps
+                    JWT_SECRET="$JWT_SECRET" \
+                    APP_IMAGE=${GHCR_APP_IMAGE} \
+                    DB_IMAGE=${DB_IMAGE} \
+                    NGINX_IMAGE=${GHCR_NGINX_IMAGE} \
+                    docker compose \
+                      -p helpdesk-staging \
+                      -f compose.staging.yaml \
+                      ps
                 '''
             }
         }
@@ -558,17 +602,18 @@ pipeline {
                     )
                 ]) {
                     sh '''
-    chmod +x scripts/deploy-production.sh
+                        chmod +x scripts/deploy-production.sh
 
-    DB_IMAGE=${DB_IMAGE} \
-    APP_IMAGE=${GHCR_APP_IMAGE} \
-    NGINX_IMAGE=${GHCR_NGINX_IMAGE} \
-    PROD_DB_NAME=${PROD_DB_NAME} \
-    PROD_DB_USER=${PROD_DB_USER} \
-    PROD_DB_PASSWORD="$PROD_DB_PASSWORD" \
-    PROD_PORT=${PROD_PORT} \
-    ./scripts/deploy-production.sh
-'''
+                        DB_IMAGE=${DB_IMAGE} \
+                        APP_IMAGE=${GHCR_APP_IMAGE} \
+                        NGINX_IMAGE=${GHCR_NGINX_IMAGE} \
+                        JWT_SECRET="$JWT_SECRET" \
+                        PROD_DB_NAME=${PROD_DB_NAME} \
+                        PROD_DB_USER=${PROD_DB_USER} \
+                        PROD_DB_PASSWORD="$PROD_DB_PASSWORD" \
+                        PROD_PORT=${PROD_PORT} \
+                        ./scripts/deploy-production.sh
+                    '''
                 }
             }
         }
@@ -697,7 +742,7 @@ Lihat stage Jenkins yang berwarna merah.
 Jika gagal pada:
 
 Login GHCR
--> cek credential ID ghcr-token
+-> cek credential ID ghcr-token1
 
 Push Images
 -> cek permission write:packages
