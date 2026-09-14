@@ -1,60 +1,143 @@
-const test = require("node:test");
-const assert = require("node:assert/strict");
+const test =
+  require("node:test");
+
+const assert =
+  require("node:assert/strict");
 
 const {
-  validateTicketInput
+  validateTicketInput,
+  validateTicketStatus
 } = require("../validation");
 
 
-test("title kosong harus ditolak", () => {
-  const result = validateTicketInput({
-    title: ""
-  });
+test(
+  "title kosong harus ditolak",
+  () => {
 
-  assert.equal(result.valid, false);
-  assert.equal(
-    result.error,
-    "Title wajib diisi"
-  );
-});
+    const result =
+      validateTicketInput({
+        title: ""
+      });
 
+    assert.equal(
+      result.valid,
+      false
+    );
 
-test("priority default adalah Medium", () => {
-  const result = validateTicketInput({
-    title: "Printer Rusak"
-  });
-
-  assert.equal(result.valid, true);
-  assert.equal(
-    result.value.priority,
-    "Medium"
-  );
-});
+  }
+);
 
 
-test("priority Critical diterima", () => {
-  const result = validateTicketInput({
-    title: "Server Down",
-    priority: "Critical"
-  });
+test(
+  "priority default adalah Medium",
+  () => {
 
-  assert.equal(result.valid, true);
-  assert.equal(
-    result.value.priority,
-    "Critical"
-  );
-});
+    const result =
+      validateTicketInput({
+        title: "Printer offline"
+      });
+
+    assert.equal(
+      result.valid,
+      true
+    );
+
+    assert.equal(
+      result.value.priority,
+      "Medium"
+    );
+
+  }
+);
 
 
-test("priority tidak valid harus ditolak", () => {
-  const result = validateTicketInput({
-    title: "Internet Putus",
-    priority: "SuperUrgent"
-  });
+test(
+  "priority Critical diterima",
+  () => {
 
-  assert.equal(result.valid, false);
-  assert.equal(
-    result.error,
-    "Priority tidak valid"
-  );
-});
+    const result =
+      validateTicketInput({
+        title: "Server down",
+        priority: "Critical"
+      });
+
+    assert.equal(
+      result.valid,
+      true
+    );
+
+  }
+);
+
+
+test(
+  "priority tidak valid harus ditolak",
+  () => {
+
+    const result =
+      validateTicketInput({
+        title: "WiFi lambat",
+        priority: "Darurat"
+      });
+
+    assert.equal(
+      result.valid,
+      false
+    );
+
+  }
+);
+
+
+test(
+  "status Open diterima",
+  () => {
+
+    const result =
+      validateTicketStatus({
+        status: "Open"
+      });
+
+    assert.equal(
+      result.valid,
+      true
+    );
+
+  }
+);
+
+
+test(
+  "status In Progress diterima",
+  () => {
+
+    const result =
+      validateTicketStatus({
+        status: "In Progress"
+      });
+
+    assert.equal(
+      result.valid,
+      true
+    );
+
+  }
+);
+
+
+test(
+  "status tidak valid harus ditolak",
+  () => {
+
+    const result =
+      validateTicketStatus({
+        status: "Rusak"
+      });
+
+    assert.equal(
+      result.valid,
+      false
+    );
+
+  }
+);

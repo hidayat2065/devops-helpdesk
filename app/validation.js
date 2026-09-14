@@ -5,6 +5,12 @@ const VALID_PRIORITIES = [
   "Critical"
 ];
 
+const VALID_STATUSES = [
+  "Open",
+  "In Progress",
+  "Resolved"
+];
+
 function validateTicketInput(data = {}) {
   const title =
     typeof data.title === "string"
@@ -37,6 +43,28 @@ function validateTicketInput(data = {}) {
   };
 }
 
+function validateTicketStatus(data = {}) {
+  const status =
+    typeof data.status === "string"
+      ? data.status.trim()
+      : "";
+
+  if (!VALID_STATUSES.includes(status)) {
+    return {
+      valid: false,
+      error: "Status tidak valid"
+    };
+  }
+
+  return {
+    valid: true,
+    value: {
+      status
+    }
+  };
+}
+
 module.exports = {
-  validateTicketInput
+  validateTicketInput,
+  validateTicketStatus
 };

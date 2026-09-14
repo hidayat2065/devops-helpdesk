@@ -1,6 +1,10 @@
 const express = require("express");
 const { Pool } = require("pg");
-const { validateTicketInput } = require("./validation");
+
+const {
+  validateTicketInput,
+  validateTicketStatus
+} = require("./validation");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -18,7 +22,7 @@ const pool = new Pool({
 app.get("/", (req, res) => {
   res.json({
     application: "DevOps Helpdesk API",
-    version: "1.1.0",
+    version: "1.2.0",
     status: "running"
   });
 });
@@ -59,7 +63,8 @@ app.get("/tickets", async (req, res) => {
 
 app.post("/tickets", async (req, res) => {
   try {
-    const validation = validateTicketInput(req.body);
+    const validation =
+      validateTicketInput(req.body);
 
     if (!validation.valid) {
       return res.status(400).json({
@@ -67,15 +72,31 @@ app.post("/tickets", async (req, res) => {
       });
     }
 
-    const { title, priority } = validation.value;
+    const {
+      title,
+      priority
+    } = validation.value;
 
     const result = await pool.query(
       `
-        INSERT INTO tickets (title, priority, status)
+        INSERT INTO tickets (
+          title,
+          priority,
+          status
+        )
         VALUES ($1, $2, $3)
-        RETURNING id, title, priority, status, created_at
+        RETURNING
+          id,
+          title,
+          priority,
+          status,
+          created_at
       `,
-      [title, priority, "Open"]
+      [
+        title,
+        priority,
+        "Open"
+      ]
     );
 
     res.status(201).json({
@@ -89,6 +110,82 @@ app.post("/tickets", async (req, res) => {
   }
 });
 
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Helpdesk API running on port ${PORT}`);
-});
+app.patch(
+  "/tickets/:id/status",
+  async (req, res) => {
+    try {
+      const ticketId =
+        Number(req.params.id);
+
+      if (!Number.isInteger(ticketId) ||
+          ticketId <= 0) {
+
+        return res.status(400).json({
+          error: "ID ticket tidak valid"
+        });
+      }
+
+      const validation =
+        validateTicketStatus(req.body);
+
+      if (!validation.valid) {
+        return res.status(400).json({
+          error: validation.error
+        });
+      }
+
+      const {
+        status
+      } = validation.value;
+
+      const result = await pool.query(
+        `
+          UPDATE tickets
+          SET status = $1
+          WHERE id = $2
+          RETURNING
+            id,
+            title,
+            priority,
+            status,
+            created_at
+        `,
+        [
+          status,
+          ticketId
+        ]
+      );
+
+      if (result.rowCount === 0) {
+        return res.status(404).json({
+          error: "Ticket tidak ditemukan"
+        });
+      }
+
+      res.json({
+        message:
+          "Status ticket berhasil diperbarui",
+
+        ticket:
+          result.rows[0]
+      });
+
+    } catch (error) {
+
+      res.status(500).json({
+        error: error.message
+      });
+
+    }
+  }
+);
+
+app.listen(
+  PORT,
+  "0.0.0.0",
+  () => {
+    console.log(
+      `Helpdesk API running on port ${PORT}`
+    );
+  }
+);
