@@ -22,7 +22,7 @@ const pool = new Pool({
 app.get("/", (req, res) => {
   res.json({
     application: "DevOps Helpdesk API",
-    version: "1.2.0",
+    version: "1.3.0",
     status: "running"
   });
 });
@@ -48,7 +48,12 @@ app.get("/health", async (req, res) => {
 app.get("/tickets", async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT id, title, priority, status, created_at
+      SELECT
+        id,
+        title,
+        priority,
+        status,
+        created_at
       FROM tickets
       ORDER BY id ASC
     `);
@@ -110,6 +115,90 @@ app.post("/tickets", async (req, res) => {
   }
 });
 
+
+// =========================================================
+// EDIT TITLE + PRIORITY
+// PATCH /tickets/:id
+// =========================================================
+app.patch(
+  "/tickets/:id",
+  async (req, res) => {
+    try {
+      const ticketId =
+        Number(req.params.id);
+
+      if (
+        !Number.isInteger(ticketId) ||
+        ticketId <= 0
+      ) {
+        return res.status(400).json({
+          error: "ID ticket tidak valid"
+        });
+      }
+
+      const validation =
+        validateTicketInput(req.body);
+
+      if (!validation.valid) {
+        return res.status(400).json({
+          error: validation.error
+        });
+      }
+
+      const {
+        title,
+        priority
+      } = validation.value;
+
+      const result = await pool.query(
+        `
+          UPDATE tickets
+          SET
+            title = $1,
+            priority = $2
+          WHERE id = $3
+          RETURNING
+            id,
+            title,
+            priority,
+            status,
+            created_at
+        `,
+        [
+          title,
+          priority,
+          ticketId
+        ]
+      );
+
+      if (result.rowCount === 0) {
+        return res.status(404).json({
+          error: "Ticket tidak ditemukan"
+        });
+      }
+
+      res.json({
+        message:
+          "Ticket berhasil diperbarui",
+        ticket:
+          result.rows[0]
+      });
+
+    } catch (error) {
+
+      res.status(500).json({
+        error: error.message
+      });
+
+    }
+  }
+);
+
+
+// =========================================================
+// UPDATE STATUS
+// PATCH /tickets/:id/status
+// =========================================================
 app.patch(
   "/tickets/:id/status",
   async (req, res) => {
@@ -117,9 +206,10 @@ app.patch(
       const ticketId =
         Number(req.params.id);
 
-      if (!Number.isInteger(ticketId) ||
-          ticketId <= 0) {
-
+      if (
+        !Number.isInteger(ticketId) ||
+        ticketId <= 0
+      ) {
         return res.status(400).json({
           error: "ID ticket tidak valid"
         });
@@ -165,7 +255,6 @@ app.patch(
       res.json({
         message:
           "Status ticket berhasil diperbarui",
-
         ticket:
           result.rows[0]
       });
@@ -179,6 +268,7 @@ app.patch(
     }
   }
 );
+
 
 app.listen(
   PORT,
