@@ -558,16 +558,17 @@ pipeline {
                     )
                 ]) {
                     sh '''
-                        chmod +x scripts/deploy-production.sh
+    chmod +x scripts/deploy-production.sh
 
-                        APP_IMAGE=${GHCR_APP_IMAGE} \
-                        NGINX_IMAGE=${GHCR_NGINX_IMAGE} \
-                        PROD_DB_NAME=${PROD_DB_NAME} \
-                        PROD_DB_USER=${PROD_DB_USER} \
-                        PROD_DB_PASSWORD="$PROD_DB_PASSWORD" \
-                        PROD_PORT=${PROD_PORT} \
-                        ./scripts/deploy-production.sh
-                    '''
+    DB_IMAGE=${DB_IMAGE} \
+    APP_IMAGE=${GHCR_APP_IMAGE} \
+    NGINX_IMAGE=${GHCR_NGINX_IMAGE} \
+    PROD_DB_NAME=${PROD_DB_NAME} \
+    PROD_DB_USER=${PROD_DB_USER} \
+    PROD_DB_PASSWORD="$PROD_DB_PASSWORD" \
+    PROD_PORT=${PROD_PORT} \
+    ./scripts/deploy-production.sh
+'''
                 }
             }
         }
