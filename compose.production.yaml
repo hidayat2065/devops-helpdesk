@@ -1,0 +1,63 @@
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: helpdesk-production-db
+    environment:
+      POSTGRES_DB: ${PROD_DB_NAME:-helpdeskdb}
+      POSTGRES_USER: ${PROD_DB_USER:-helpdesk_prod}
+      POSTGRES_PASSWORD: ${PROD_DB_PASSWORD:?PROD_DB_PASSWORD is required}
+    volumes:
+      - production-postgres-data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${PROD_DB_USER:-helpdesk_prod} -d ${PROD_DB_NAME:-helpdeskdb}"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+    networks:
+      production-network:
+        aliases:
+          - db
+
+  app:
+    image: ${APP_IMAGE:?APP_IMAGE is required}
+    container_name: helpdesk-production-app
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${PROD_DB_NAME:-helpdeskdb}
+      DB_USER: ${PROD_DB_USER:-helpdesk_prod}
+      DB_PASSWORD: ${PROD_DB_PASSWORD:?PROD_DB_PASSWORD is required}
+      PORT: 3000
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      production-network:
+        aliases:
+          - app
+
+  nginx:
+    image: ${NGINX_IMAGE:?NGINX_IMAGE is required}
+    container_name: helpdesk-production-nginx
+    ports:
+      - "${PROD_PORT:-8084}:80"
+    depends_on:
+      - app
+    restart: unless-stopped
+    networks:
+      production-network:
+        aliases:
+          - nginx
+
+volumes:
+  production-postgres-data:
+
+networks:
+  production-network:
