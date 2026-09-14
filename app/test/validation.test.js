@@ -141,3 +141,20 @@ test(
 
   }
 );
+
+test(
+  "status Closed diterima",
+  () => {
+
+    const result =
+      validateTicketStatus({
+        status: "Closed"
+      });
+
+    assert.equal(
+      result.valid,
+      true
+    );
+
+  }
+);

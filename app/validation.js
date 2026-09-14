@@ -8,7 +8,8 @@ const VALID_PRIORITIES = [
 const VALID_STATUSES = [
   "Open",
   "In Progress",
-  "Resolved"
+  "Resolved",
+  "Closed"
 ];
 
 function validateTicketInput(data = {}) {
