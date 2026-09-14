@@ -24,6 +24,13 @@ pipeline {
 
         APP_CONTAINER = "helpdesk-ci-app-${BUILD_NUMBER}"
         DB_CONTAINER = "helpdesk-ci-db-${BUILD_NUMBER}"
+
+        // =========================================================
+        // PRODUCTION
+        // =========================================================
+        PROD_DB_NAME = "helpdeskdb"
+        PROD_DB_USER = "helpdesk_prod"
+        PROD_PORT = "8084"
     }
 
     stages {
@@ -94,6 +101,8 @@ pipeline {
                     test -f nginx/html/index.html
 
                     test -f compose.staging.yaml
+                    test -f compose.production.yaml
+                    test -f scripts/deploy-production.sh
 
                     echo "SOURCE VALIDATION PASSED"
                 '''
@@ -328,7 +337,7 @@ pipeline {
 
                 withCredentials([
                     string(
-                        credentialsId: 'ghcr-token1',
+                        credentialsId: 'ghcr-token',
                         variable: 'GHCR_TOKEN'
                     )
                 ]) {
@@ -517,6 +526,101 @@ pipeline {
             }
         }
 
+
+        // =========================================================
+        // 22. MANUAL PRODUCTION APPROVAL
+        // =========================================================
+        stage('Production Approval') {
+            steps {
+                timeout(time: 30, unit: 'MINUTES') {
+                    input(
+                        message:
+                            "Staging sehat. Deploy commit ${GIT_SHORT_SHA} ke PRODUCTION?",
+                        ok: 'Deploy ke Production'
+                    )
+                }
+            }
+        }
+
+        // =========================================================
+        // 23. PRODUCTION DEPLOY + AUTOMATIC ROLLBACK
+        // =========================================================
+        stage('Deploy Production') {
+            steps {
+                echo '=== DEPLOY PRODUCTION ==='
+                echo "Release : ${GIT_SHORT_SHA}"
+                echo "Port    : ${PROD_PORT}"
+
+                withCredentials([
+                    string(
+                        credentialsId: 'prod-db-password',
+                        variable: 'PROD_DB_PASSWORD'
+                    )
+                ]) {
+                    sh '''
+                        chmod +x scripts/deploy-production.sh
+
+                        APP_IMAGE=${GHCR_APP_IMAGE} \
+                        NGINX_IMAGE=${GHCR_NGINX_IMAGE} \
+                        PROD_DB_NAME=${PROD_DB_NAME} \
+                        PROD_DB_USER=${PROD_DB_USER} \
+                        PROD_DB_PASSWORD="$PROD_DB_PASSWORD" \
+                        PROD_PORT=${PROD_PORT} \
+                        ./scripts/deploy-production.sh
+                    '''
+                }
+            }
+        }
+
+        // =========================================================
+        // 24. VERIFY PRODUCTION
+        // =========================================================
+        stage('Verify Production') {
+            steps {
+                echo '=== VERIFY PRODUCTION CONTAINERS ==='
+
+                sh '''
+                    RUNNING_APP_IMAGE=$(docker inspect \
+                      --format='{{.Config.Image}}' \
+                      helpdesk-production-app)
+
+                    RUNNING_NGINX_IMAGE=$(docker inspect \
+                      --format='{{.Config.Image}}' \
+                      helpdesk-production-nginx)
+
+                    DB_STATUS=$(docker inspect \
+                      --format='{{.State.Health.Status}}' \
+                      helpdesk-production-db)
+
+                    echo "APP      : ${RUNNING_APP_IMAGE}"
+                    echo "NGINX    : ${RUNNING_NGINX_IMAGE}"
+                    echo "DATABASE : ${DB_STATUS}"
+
+                    if [ "${RUNNING_APP_IMAGE}" != "${GHCR_APP_IMAGE}" ]
+                    then
+                        echo "ERROR: production APP image mismatch"
+                        exit 1
+                    fi
+
+                    if [ "${RUNNING_NGINX_IMAGE}" != "${GHCR_NGINX_IMAGE}" ]
+                    then
+                        echo "ERROR: production NGINX image mismatch"
+                        exit 1
+                    fi
+
+                    if [ "${DB_STATUS}" != "healthy" ]
+                    then
+                        echo "ERROR: production database is not healthy"
+                        exit 1
+                    fi
+
+                    echo "========================================"
+                    echo "PRODUCTION VERIFICATION PASSED"
+                    echo "========================================"
+                '''
+            }
+        }
+
     }
 
     // =============================================================
@@ -560,6 +664,22 @@ GHCR Staging Pull       : PASS
 Staging Deploy          : PASS
 Staging Image Verify    : PASS
 Staging Health          : PASS
+Production Approval     : APPROVED
+Production Deploy       : PASS
+Production Verify       : PASS
+================================================
+'''
+        }
+
+        aborted {
+
+            echo '''
+================================================
+             PIPELINE ABORTED
+================================================
+Production tidak dideploy karena approval
+dibatalkan atau timeout.
+Staging tetap berjalan.
 ================================================
 '''
         }
