@@ -26,16 +26,13 @@ pipeline {
         DB_CONTAINER = "helpdesk-ci-db-${BUILD_NUMBER}"
     }
 
-
     stages {
 
         // =========================================================
         // 1. CHECKOUT
         // =========================================================
         stage('Checkout') {
-
             steps {
-
                 echo '=== CHECKOUT SOURCE ==='
 
                 sh '''
@@ -44,14 +41,11 @@ pipeline {
             }
         }
 
-
         // =========================================================
         // 2. GENERATE VERSION
         // =========================================================
         stage('Generate Version') {
-
             steps {
-
                 script {
 
                     env.GIT_SHORT_SHA = sh(
@@ -77,14 +71,11 @@ pipeline {
             }
         }
 
-
         // =========================================================
         // 3. VALIDATE SOURCE
         // =========================================================
         stage('Validate Source') {
-
             steps {
-
                 echo '=== VALIDATE SOURCE ==='
 
                 sh '''
@@ -109,14 +100,11 @@ pipeline {
             }
         }
 
-
         // =========================================================
         // 4. DOCKER CHECK
         // =========================================================
         stage('Docker Check') {
-
             steps {
-
                 echo '=== DOCKER CHECK ==='
 
                 sh '''
@@ -126,237 +114,156 @@ pipeline {
             }
         }
 
-
         // =========================================================
         // 5. BUILD APPLICATION
         // =========================================================
         stage('Build App Image') {
-
             steps {
-
                 echo '=== BUILD APP IMAGE ==='
 
                 sh '''
-                    docker build \
-                      -t ${APP_IMAGE} \
-                      ./app
+                    docker build                       -t ${APP_IMAGE}                       ./app
                 '''
             }
         }
-
 
         // =========================================================
         // 6. UNIT TEST
         // =========================================================
         stage('Unit Test') {
-
             steps {
-
                 echo '=== UNIT TEST ==='
 
                 sh '''
-                    docker run \
-                      --rm \
-                      ${APP_IMAGE} \
-                      npm test
+                    docker run                       --rm                       ${APP_IMAGE}                       npm test
                 '''
             }
         }
-
 
         // =========================================================
         // 7. SYNTAX CHECK
         // =========================================================
         stage('Syntax Check') {
-
             steps {
-
                 echo '=== SYNTAX CHECK ==='
 
                 sh '''
-                    docker run \
-                      --rm \
-                      ${APP_IMAGE} \
-                      npm run check
+                    docker run                       --rm                       ${APP_IMAGE}                       npm run check
                 '''
             }
         }
-
 
         // =========================================================
         // 8. BUILD TEST DATABASE
         // =========================================================
         stage('Build Test Database') {
-
             steps {
-
                 echo '=== BUILD TEST DATABASE ==='
 
                 sh '''
-                    docker build \
-                      -t ${DB_IMAGE} \
-                      ./db
+                    docker build                       -t ${DB_IMAGE}                       ./db
                 '''
             }
         }
-
 
         // =========================================================
         // 9. BUILD NGINX
         // =========================================================
         stage('Build Nginx Image') {
-
             steps {
-
                 echo '=== BUILD NGINX IMAGE ==='
 
                 sh '''
-                    docker build \
-                      -t ${NGINX_IMAGE} \
-                      ./nginx
+                    docker build                       -t ${NGINX_IMAGE}                       ./nginx
                 '''
             }
         }
-
 
         // =========================================================
         // 10. PREPARE CI TEST ENVIRONMENT
         // =========================================================
         stage('Create Test Network') {
-
             steps {
-
                 echo '=== CREATE CI TEST NETWORK ==='
 
                 sh '''
-                    docker rm -f \
-                      ${APP_CONTAINER} \
-                      >/dev/null 2>&1 || true
+                    docker rm -f                       ${APP_CONTAINER}                       >/dev/null 2>&1 || true
 
-                    docker rm -f \
-                      ${DB_CONTAINER} \
-                      >/dev/null 2>&1 || true
+                    docker rm -f                       ${DB_CONTAINER}                       >/dev/null 2>&1 || true
 
-                    docker network rm \
-                      ${CI_NETWORK} \
-                      >/dev/null 2>&1 || true
+                    docker network rm                       ${CI_NETWORK}                       >/dev/null 2>&1 || true
 
-                    docker network create \
-                      ${CI_NETWORK}
+                    docker network create                       ${CI_NETWORK}
                 '''
             }
         }
-
 
         // =========================================================
         // 11. START POSTGRESQL
         // =========================================================
         stage('Start PostgreSQL') {
-
             steps {
-
                 echo '=== START POSTGRESQL TEST DATABASE ==='
 
                 sh '''
-                    docker run -d \
-                      --name ${DB_CONTAINER} \
-                      --network ${CI_NETWORK} \
-                      -e POSTGRES_DB=helpdeskdb \
-                      -e POSTGRES_USER=helpdesk \
-                      -e POSTGRES_PASSWORD=helpdesk123 \
-                      --health-cmd="pg_isready -U helpdesk -d helpdeskdb" \
-                      --health-interval=2s \
-                      --health-timeout=2s \
-                      --health-retries=30 \
-                      ${DB_IMAGE}
+                    docker run -d                       --name ${DB_CONTAINER}                       --network ${CI_NETWORK}                       -e POSTGRES_DB=helpdeskdb                       -e POSTGRES_USER=helpdesk                       -e POSTGRES_PASSWORD=helpdesk123                       --health-cmd="pg_isready -U helpdesk -d helpdeskdb"                       --health-interval=2s                       --health-timeout=2s                       --health-retries=30                       ${DB_IMAGE}
                 '''
-
 
                 echo '=== WAIT POSTGRESQL ==='
 
                 sh '''
                     for i in $(seq 1 30)
                     do
-
-                        STATUS=$(docker inspect \
-                          --format='{{.State.Health.Status}}' \
-                          ${DB_CONTAINER} \
-                          2>/dev/null || true)
+                        STATUS=$(docker inspect                           --format='{{.State.Health.Status}}'                           ${DB_CONTAINER}                           2>/dev/null || true)
 
                         echo "Database status: ${STATUS}"
 
                         if [ "${STATUS}" = "healthy" ]
                         then
-
                             echo "POSTGRESQL READY"
-
                             exit 0
                         fi
 
                         sleep 2
                     done
 
-
                     echo "POSTGRESQL FAILED"
-
                     docker logs ${DB_CONTAINER} || true
-
                     exit 1
                 '''
             }
         }
 
-
         // =========================================================
         // 12. START APPLICATION
         // =========================================================
         stage('Start Application') {
-
             steps {
-
                 echo '=== START TEST APPLICATION ==='
 
                 sh '''
-                    docker run -d \
-                      --name ${APP_CONTAINER} \
-                      --network ${CI_NETWORK} \
-                      -e DB_HOST=${DB_CONTAINER} \
-                      -e DB_PORT=5432 \
-                      -e DB_NAME=helpdeskdb \
-                      -e DB_USER=helpdesk \
-                      -e DB_PASSWORD=helpdesk123 \
-                      -e PORT=3000 \
-                      ${APP_IMAGE}
+                    docker run -d                       --name ${APP_CONTAINER}                       --network ${CI_NETWORK}                       -e DB_HOST=${DB_CONTAINER}                       -e DB_PORT=5432                       -e DB_NAME=helpdeskdb                       -e DB_USER=helpdesk                       -e DB_PASSWORD=helpdesk123                       -e PORT=3000                       ${APP_IMAGE}
                 '''
             }
         }
-
 
         // =========================================================
         // 13. INTEGRATION TEST
         // =========================================================
         stage('Integration Health Check') {
-
             steps {
-
                 echo '=== INTEGRATION HEALTH CHECK ==='
 
                 sh '''
                     for i in $(seq 1 30)
                     do
-
                         echo "Health check attempt ${i}"
 
-                        if docker run \
-                          --rm \
-                          --network ${CI_NETWORK} \
-                          node:24-alpine \
-                          node -e "
+                        if docker run                           --rm                           --network ${CI_NETWORK}                           node:24-alpine                           node -e "
                             fetch(
                               'http://${APP_CONTAINER}:3000/health'
                             )
                             .then(async response => {
-
                                 const data =
                                     await response.json();
 
@@ -373,31 +280,25 @@ pipeline {
                                 process.exit(0);
                             })
                             .catch(error => {
-
                                 console.error(error);
-
                                 process.exit(1);
                             });
                           "
                         then
-
                             echo '========================================'
                             echo 'INTEGRATION TEST PASSED'
                             echo '========================================'
-
                             exit 0
                         fi
 
                         sleep 2
                     done
 
-
                     echo '========================================'
                     echo 'INTEGRATION TEST FAILED'
                     echo '========================================'
 
                     echo '=== APPLICATION LOG ==='
-
                     docker logs ${APP_CONTAINER} || true
 
                     exit 1
@@ -405,70 +306,50 @@ pipeline {
             }
         }
 
-
         // =========================================================
         // 14. VERIFY IMAGE
         // =========================================================
         stage('Verify Image') {
-
             steps {
-
                 echo '=== VERIFY APPLICATION IMAGE ==='
 
                 sh '''
-                    docker image inspect \
-                      --format='{{.Id}}' \
-                      ${APP_IMAGE}
+                    docker image inspect                       --format='{{.Id}}'                       ${APP_IMAGE}
                 '''
             }
         }
-
 
         // =========================================================
         // 15. LOGIN GHCR
         // =========================================================
         stage('Login GHCR') {
-
             steps {
-
                 echo '=== LOGIN GITHUB CONTAINER REGISTRY ==='
 
                 withCredentials([
                     string(
-                        credentialsId: 'ghcr-token1',
+                        credentialsId: 'ghcr-token',
                         variable: 'GHCR_TOKEN'
                     )
                 ]) {
-
                     sh '''
-                        echo "$GHCR_TOKEN" | \
-                        docker login \
-                          ${GHCR_REGISTRY} \
-                          -u ${GHCR_OWNER} \
-                          --password-stdin
+                        echo "$GHCR_TOKEN" |                         docker login                           ${GHCR_REGISTRY}                           -u ${GHCR_OWNER}                           --password-stdin
                     '''
                 }
             }
         }
 
-
         // =========================================================
         // 16. TAG IMAGES
         // =========================================================
         stage('Tag Images') {
-
             steps {
-
                 echo '=== TAG IMAGES FOR GHCR ==='
 
                 sh '''
-                    docker tag \
-                      ${APP_IMAGE} \
-                      ${GHCR_APP_IMAGE}
+                    docker tag                       ${APP_IMAGE}                       ${GHCR_APP_IMAGE}
 
-                    docker tag \
-                      ${NGINX_IMAGE} \
-                      ${GHCR_NGINX_IMAGE}
+                    docker tag                       ${NGINX_IMAGE}                       ${GHCR_NGINX_IMAGE}
 
                     echo "APP IMAGE:"
                     echo "${GHCR_APP_IMAGE}"
@@ -479,95 +360,115 @@ pipeline {
             }
         }
 
-
         // =========================================================
         // 17. PUSH IMAGES TO GHCR
         // =========================================================
         stage('Push Images') {
-
             steps {
-
                 echo '=== PUSH IMAGES TO GHCR ==='
 
                 sh '''
-                    docker push \
-                      ${GHCR_APP_IMAGE}
+                    docker push                       ${GHCR_APP_IMAGE}
 
-                    docker push \
-                      ${GHCR_NGINX_IMAGE}
+                    docker push                       ${GHCR_NGINX_IMAGE}
                 '''
             }
         }
 
-
         // =========================================================
-        // 18. DEPLOY STAGING
+        // 18. PULL STAGING IMAGES FROM GHCR
         // =========================================================
-        stage('Deploy Staging') {
-
+        stage('Pull Staging Images') {
             steps {
-
-                echo '=== DEPLOY TO STAGING ==='
-
-                /*
-                 * Untuk tahap ini staging masih memakai
-                 * image lokal hasil build Jenkins.
-                 *
-                 * Tahap berikutnya baru kita ubah staging
-                 * supaya pull langsung dari GHCR.
-                 */
+                echo '=== PULL STAGING IMAGES FROM GHCR ==='
 
                 sh '''
-                    APP_IMAGE=${APP_IMAGE} \
-                    DB_IMAGE=${DB_IMAGE} \
-                    NGINX_IMAGE=${NGINX_IMAGE} \
-                    docker compose \
-                      -p helpdesk-staging \
-                      -f compose.staging.yaml \
-                      up -d
+                    APP_IMAGE=${GHCR_APP_IMAGE}                     DB_IMAGE=${DB_IMAGE}                     NGINX_IMAGE=${GHCR_NGINX_IMAGE}                     docker compose                       -p helpdesk-staging                       -f compose.staging.yaml                       pull app nginx
                 '''
+            }
+        }
 
+        // =========================================================
+        // 19. DEPLOY STAGING FROM GHCR
+        // =========================================================
+        stage('Deploy Staging') {
+            steps {
+                echo '=== DEPLOY STAGING FROM GHCR ==='
+
+                sh '''
+                    APP_IMAGE=${GHCR_APP_IMAGE}                     DB_IMAGE=${DB_IMAGE}                     NGINX_IMAGE=${GHCR_NGINX_IMAGE}                     docker compose                       -p helpdesk-staging                       -f compose.staging.yaml                       up -d
+                '''
 
                 echo '=== STAGING CONTAINERS ==='
 
                 sh '''
-                    APP_IMAGE=${APP_IMAGE} \
-                    DB_IMAGE=${DB_IMAGE} \
-                    NGINX_IMAGE=${NGINX_IMAGE} \
-                    docker compose \
-                      -p helpdesk-staging \
-                      -f compose.staging.yaml \
-                      ps
+                    APP_IMAGE=${GHCR_APP_IMAGE}                     DB_IMAGE=${DB_IMAGE}                     NGINX_IMAGE=${GHCR_NGINX_IMAGE}                     docker compose                       -p helpdesk-staging                       -f compose.staging.yaml                       ps
                 '''
             }
         }
 
+        // =========================================================
+        // 20. VERIFY STAGING IMAGES
+        // =========================================================
+        stage('Verify Staging Images') {
+            steps {
+                echo '=== VERIFY STAGING IMAGE VERSION ==='
+
+                sh '''
+                    RUNNING_APP_IMAGE=$(docker inspect                       --format='{{.Config.Image}}'                       helpdesk-staging-app)
+
+                    RUNNING_NGINX_IMAGE=$(docker inspect                       --format='{{.Config.Image}}'                       helpdesk-staging-nginx)
+
+                    echo "Expected APP:"
+                    echo "${GHCR_APP_IMAGE}"
+
+                    echo "Running APP:"
+                    echo "${RUNNING_APP_IMAGE}"
+
+                    echo ""
+
+                    echo "Expected NGINX:"
+                    echo "${GHCR_NGINX_IMAGE}"
+
+                    echo "Running NGINX:"
+                    echo "${RUNNING_NGINX_IMAGE}"
+
+                    if [ "${RUNNING_APP_IMAGE}" != "${GHCR_APP_IMAGE}" ]
+                    then
+                        echo "ERROR: APP IMAGE VERSION MISMATCH"
+                        exit 1
+                    fi
+
+                    if [ "${RUNNING_NGINX_IMAGE}" != "${GHCR_NGINX_IMAGE}" ]
+                    then
+                        echo "ERROR: NGINX IMAGE VERSION MISMATCH"
+                        exit 1
+                    fi
+
+                    echo "========================================"
+                    echo "STAGING IMAGE VERIFICATION PASSED"
+                    echo "========================================"
+                '''
+            }
+        }
 
         // =========================================================
-        // 19. STAGING HEALTH CHECK
+        // 21. STAGING HEALTH CHECK
         // =========================================================
         stage('Staging Health Check') {
-
             steps {
-
                 echo '=== STAGING HEALTH CHECK ==='
 
                 sh '''
                     for i in $(seq 1 30)
                     do
-
                         echo "Staging health check attempt ${i}"
 
-                        if docker run \
-                          --rm \
-                          --network helpdesk-staging_staging-network \
-                          node:24-alpine \
-                          node -e "
+                        if docker run                           --rm                           --network helpdesk-staging_staging-network                           node:24-alpine                           node -e "
                             fetch(
                               'http://nginx/api/health'
                             )
                             .then(async response => {
-
                                 const data =
                                     await response.json();
 
@@ -584,24 +485,19 @@ pipeline {
                                 process.exit(0);
                             })
                             .catch(error => {
-
                                 console.error(error);
-
                                 process.exit(1);
                             });
                           "
                         then
-
                             echo '========================================'
                             echo 'STAGING HEALTHY'
                             echo '========================================'
-
                             exit 0
                         fi
 
                         sleep 2
                     done
-
 
                     echo '========================================'
                     echo 'STAGING HEALTH CHECK FAILED'
@@ -623,77 +519,51 @@ pipeline {
 
     }
 
-
     // =============================================================
     // POST ACTIONS
     // =============================================================
     post {
 
-
-        // =========================================================
-        // ALWAYS
-        // =========================================================
         always {
 
             echo '=== CI CLEANUP ==='
 
-            /*
-             * HANYA container/network CI sementara
-             * yang dihapus.
-             *
-             * Container staging TIDAK dihapus.
-             */
-
             sh '''
-                docker rm -f \
-                  ${APP_CONTAINER} \
-                  >/dev/null 2>&1 || true
+                docker rm -f                   ${APP_CONTAINER}                   >/dev/null 2>&1 || true
 
-                docker rm -f \
-                  ${DB_CONTAINER} \
-                  >/dev/null 2>&1 || true
+                docker rm -f                   ${DB_CONTAINER}                   >/dev/null 2>&1 || true
 
-                docker network rm \
-                  ${CI_NETWORK} \
-                  >/dev/null 2>&1 || true
+                docker network rm                   ${CI_NETWORK}                   >/dev/null 2>&1 || true
 
-                docker logout \
-                  ${GHCR_REGISTRY} \
-                  >/dev/null 2>&1 || true
+                docker logout                   ${GHCR_REGISTRY}                   >/dev/null 2>&1 || true
             '''
 
             echo "Build Jenkins #${BUILD_NUMBER} selesai"
         }
 
-
-        // =========================================================
-        // SUCCESS
-        // =========================================================
         success {
 
             echo '''
 ================================================
              CI/CD PIPELINE SUCCESS
 ================================================
-Source Validation : PASS
-Unit Test         : PASS
-Syntax Check      : PASS
-Docker Build      : PASS
-PostgreSQL Test   : PASS
-Integration Test  : PASS
-Nginx Build       : PASS
-GHCR Login        : PASS
-GHCR Push         : PASS
-Staging Deploy    : PASS
-Staging Health    : PASS
+Source Validation       : PASS
+Unit Test               : PASS
+Syntax Check            : PASS
+Docker Build            : PASS
+PostgreSQL Test         : PASS
+Integration Test        : PASS
+Nginx Build             : PASS
+GHCR Login              : PASS
+GHCR Push               : PASS
+GHCR Staging Pull       : PASS
+Staging Deploy          : PASS
+Staging Image Verify    : PASS
+Staging Health          : PASS
 ================================================
 '''
         }
 
-
-        // =========================================================
-        // FAILURE
-        // =========================================================
         failure {
 
             echo '''
@@ -706,19 +576,25 @@ Lihat stage Jenkins yang berwarna merah.
 Jika gagal pada:
 
 Login GHCR
-→ cek credential ID ghcr-token
+-> cek credential ID ghcr-token
 
 Push Images
-→ cek permission write:packages
+-> cek permission write:packages
+
+Pull Staging Images
+-> cek package GHCR dan login registry
 
 Integration Health Check
-→ cek app/database log
+-> cek app/database log
 
 Deploy Staging
-→ cek compose.staging.yaml
+-> cek compose.staging.yaml
+
+Verify Staging Images
+-> cek image yang sedang dipakai container staging
 
 Staging Health Check
-→ cek Nginx/App/PostgreSQL
+-> cek Nginx/App/PostgreSQL
 
 ================================================
 '''
